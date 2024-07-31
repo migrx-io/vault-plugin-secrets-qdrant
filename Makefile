@@ -22,6 +22,6 @@ teardown-env:
 	@cd bootstrap && docker-compose -f ./docker-compose.yml down
 
 .PHONY: clean
-clean:
+clean: teardown-env
 	@rm -rf bin/*
 	@cd bootstrap && rm -rf qdrant_data
