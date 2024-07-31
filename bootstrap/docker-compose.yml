@@ -1,0 +1,26 @@
+version: '3.9'
+
+volumes:
+  redis_data: {}
+
+networks:
+  qdrant:
+    driver: bridge
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    container_name: qdrant
+    environment:
+      - QDRANT__SERVICE__API_KEY=secret
+      - QDRANT__SERVICE__JWT_RBAC=true
+    ports:
+      - 6333:6333
+      - 6334:6334
+    expose:
+      - 6333
+      - 6334
+      - 6335
+    volumes:
+      - ./qdrant_data:/qdrant/storage
