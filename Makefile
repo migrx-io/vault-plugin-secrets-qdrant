@@ -15,12 +15,16 @@ fmt:
 
 .PHONY: setup-env
 setup-env: build
-	@docker rmi -f bootstrap-vault
 	@cd bootstrap && docker compose -f ./docker-compose.yml down && docker compose -f ./docker-compose.yml up --build -d
 
 .PHONY: teardown-env
 teardown-env:
 	@cd bootstrap && docker-compose -f ./docker-compose.yml down
+	@docker rmi -f bootstrap-vault
+
+.PHONY: e2e
+e2e:
+	@docker build --network=host --progress=plain --no-cache -f tests/Dockerfile -t vault-jwt-e2e-test .
 
 .PHONY: clean
 clean: teardown-env
