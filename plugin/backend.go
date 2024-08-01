@@ -1,168 +1,285 @@
-package mock
+package qdrant
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/rand"
 	"fmt"
-	"strings"
-
-	"github.com/hashicorp/errwrap"
+	"github.com/go-jose/go-jose/v4"
 	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/helper/jsonutil"
+	"github.com/hashicorp/vault/sdk/helper/errutil"
+	"github.com/hashicorp/vault/sdk/helper/keysutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
-// backend wraps the backend framework and adds a map for storing key value pairs
+const (
+	configPath  = "config"
+	mainKeyName = "main"
+
+	// Minimum cache size for transit backend
+	minCacheSize = 10
+)
+
 type backend struct {
 	*framework.Backend
-
-	store map[string][]byte
+	id               string
+	lockManager      *keysutil.LockManager
+	cachedConfig     *Config
+	cachedConfigLock *sync.RWMutex
+	idGen            uniqueIdGenerator
 }
 
-var _ logical.Factory = Factory
-
-// Factory configures and returns Mock backends
+// Factory returns a new backend as logical.Backend.
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
-	b, err := newBackend()
+	b, err := createBackend(conf)
 	if err != nil {
 		return nil, err
 	}
-
-	if conf == nil {
-		return nil, fmt.Errorf("configuration passed into backend is nil")
-	}
-
 	if err := b.Setup(ctx, conf); err != nil {
 		return nil, err
 	}
-
 	return b, nil
 }
 
-func newBackend() (*backend, error) {
-	b := &backend{
-		store: make(map[string][]byte),
+func createBackend(conf *logical.BackendConfig) (*backend, error) {
+	var b backend
+
+	var err error
+	b.lockManager, err = keysutil.NewLockManager(true, minCacheSize)
+	if err != nil {
+		return nil, err
 	}
+
+	b.id = conf.BackendUUID
+	b.cachedConfigLock = new(sync.RWMutex)
+	b.idGen = friendlyIdGenerator{}
 
 	b.Backend = &framework.Backend{
-		Help:        strings.TrimSpace(mockHelp),
 		BackendType: logical.TypeLogical,
-		Paths: framework.PathAppend(
-			b.paths(),
-		),
-	}
-
-	return b, nil
-}
-
-func (b *backend) paths() []*framework.Path {
-	return []*framework.Path{
-		{
-			Pattern: framework.MatchAllRegex("path"),
-
-			Fields: map[string]*framework.FieldSchema{
-				"path": {
-					Type:        framework.TypeString,
-					Description: "Specifies the path of the secret.",
-				},
+		Help:        strings.TrimSpace(backendHelp),
+		PathsSpecial: &logical.Paths{
+			SealWrapStorage: []string{
+				"config",
 			},
-
-			Operations: map[logical.Operation]framework.OperationHandler{
-				logical.ReadOperation: &framework.PathOperation{
-					Callback: b.handleRead,
-					Summary:  "Retrieve the secret from the map.",
-				},
-				logical.UpdateOperation: &framework.PathOperation{
-					Callback: b.handleWrite,
-					Summary:  "Store a secret at the specified location.",
-				},
-				logical.CreateOperation: &framework.PathOperation{
-					Callback: b.handleWrite,
-				},
-				logical.DeleteOperation: &framework.PathOperation{
-					Callback: b.handleDelete,
-					Summary:  "Deletes the secret at the specified location.",
-				},
-			},
-
-			ExistenceCheck: b.handleExistenceCheck,
 		},
+		Paths: []*framework.Path(
+			pathConfig(&b),
+			pathRole(&b),
+			pathSign(&b),
+		),
+		Secrets: []*framework.Secret{
+			b.token(),
+		},
+		InitializeFunc: b.initialize,
+		PeriodicFunc:   b.periodic,
+		Invalidate:     b.invalidate,
+		Clean:          b.clean,
 	}
+	return &b, nil
 }
 
-func (b *backend) handleExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
-	out, err := req.Storage.Get(ctx, req.Path)
+func (b *backend) initialize(ctx context.Context, req *logical.InitializationRequest) error {
+
+	if _, err := b.getConfig(ctx, req.Storage); err != nil {
+		return err
+	}
+
+	b.Logger().Debug("Initialized")
+
+	return nil
+}
+
+func (b *backend) periodic(ctx context.Context, req *logical.Request) error {
+
+	config, err := b.getConfig(ctx, req.Storage)
 	if err != nil {
-		return false, errwrap.Wrapf("existence check failed: {{err}}", err)
+		return err
 	}
 
-	return out != nil, nil
-}
-
-func (b *backend) handleRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	if req.ClientToken == "" {
-		return nil, fmt.Errorf("client token empty")
-	}
-
-	path := data.Get("path").(string)
-
-	// Decode the data
-	var rawData map[string]interface{}
-	fetchedData := b.store[req.ClientToken+"/"+path]
-	if fetchedData == nil {
-		resp := logical.ErrorResponse("No value at %v%v", req.MountPoint, path)
-		return resp, nil
-	}
-
-	if err := jsonutil.DecodeJSON(fetchedData, &rawData); err != nil {
-		return nil, errwrap.Wrapf("json decoding failed: {{err}}", err)
-	}
-
-	// Generate the response
-	resp := &logical.Response{
-		Data: rawData,
-	}
-
-	return resp, nil
-}
-
-func (b *backend) handleWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	if req.ClientToken == "" {
-		return nil, fmt.Errorf("client token empty")
-	}
-
-	// Check to make sure that kv pairs provided
-	if len(req.Data) == 0 {
-		return nil, fmt.Errorf("data must be provided to store in secret")
-	}
-
-	path := data.Get("path").(string)
-
-	// JSON encode the data
-	buf, err := json.Marshal(req.Data)
+	policy, err := b.getPolicy(ctx, req.Storage, config, req.MountPoint)
 	if err != nil {
-		return nil, errwrap.Wrapf("json encoding failed: {{err}}", err)
+		return err
 	}
 
-	// Store kv pairs in map at specified path
-	b.store[req.ClientToken+"/"+path] = buf
-
-	return nil, nil
+	return b.pruneKeyVersions(ctx, req.Storage, policy, config, req.MountPoint)
 }
 
-func (b *backend) handleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	if req.ClientToken == "" {
-		return nil, fmt.Errorf("client token empty")
+func (b *backend) invalidate(_ context.Context, key string) {
+	if b.Logger().IsDebug() {
+		b.Logger().Debug("invalidating key", "key", key)
+	}
+	switch {
+	case strings.HasPrefix(key, "policy/"):
+		name := strings.TrimPrefix(key, "policy/")
+		b.lockManager.InvalidatePolicy(name)
+	case strings.HasPrefix(key, configPath):
+		b.cachedConfigLock.Lock()
+		defer b.cachedConfigLock.Unlock()
+		b.cachedConfig = nil
+	}
+}
+
+func (b *backend) clean(_ context.Context) {
+	// Nothing to do
+}
+
+func (b *backend) getPolicy(ctx context.Context, stg logical.Storage, config *Config, mount string) (*keysutil.Policy, error) {
+
+	polReq := keysutil.PolicyRequest{
+		Upsert:               true,
+		Storage:              stg,
+		Name:                 mainKeyName,
+		Derived:              false,
+		Convergent:           false,
+		Exportable:           false,
+		AllowPlaintextBackup: false,
 	}
 
-	path := data.Get("path").(string)
+	var err error
 
-	// Remove entry for specified path
-	delete(b.store, req.ClientToken+"/"+path)
+	switch config.SignatureAlgorithm {
+	case jose.RS256, jose.RS384, jose.RS512:
+		switch config.RSAKeyBits {
+		case 2048:
+			polReq.KeyType = keysutil.KeyType_RSA2048
+		case 3072:
+			polReq.KeyType = keysutil.KeyType_RSA3072
+		case 4096:
+			polReq.KeyType = keysutil.KeyType_RSA4096
+		default:
+			err = errutil.InternalError{Err: "unsupported RSA key size"}
+		}
+	case jose.ES256:
+		polReq.KeyType = keysutil.KeyType_ECDSA_P256
+	case jose.ES384:
+		polReq.KeyType = keysutil.KeyType_ECDSA_P384
+	case jose.ES512:
+		polReq.KeyType = keysutil.KeyType_ECDSA_P521
+	default:
+		err = errutil.InternalError{Err: "unknown/unsupported signature algorithm"}
+	}
 
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+
+	policy, _, err := b.lockManager.GetPolicy(ctx, polReq, rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := b.rotateIfNecessary(ctx, stg, policy, config, mount); err != nil {
+		return nil, err
+	}
+
+	return policy, nil
 }
 
-const mockHelp = `
-The Mock backend is a dummy secrets backend that stores kv pairs in a map.
+func (b *backend) rotateIfNecessary(ctx context.Context, stg logical.Storage, policy *keysutil.Policy, config *Config, mount string) error {
+	policy.Lock(true)
+	defer policy.Unlock()
+
+	latestKey, ok := policy.Keys[strconv.Itoa(policy.LatestVersion)]
+	if !ok {
+		return nil
+	}
+
+	if latestKey.CreationTime.Add(config.KeyRotationPeriod).After(time.Now()) {
+		return nil
+	}
+
+	err := policy.Rotate(ctx, stg, rand.Reader)
+	if err != nil {
+		return err
+	}
+
+	b.lockManager.InvalidatePolicy(policy.Name)
+
+	b.Logger().Info(fmt.Sprintf("Key Rotated: mount=%s", mount))
+
+	return nil
+}
+
+func (b *backend) pruneKeyVersions(ctx context.Context, stg logical.Storage, policy *keysutil.Policy, config *Config, mount string) error {
+
+	logger := b.Logger()
+
+	if logger.IsDebug() {
+		logger.Debug(fmt.Sprintf("Pruning Keys: mount=%s", mount))
+	}
+
+	policy.Lock(false)
+
+	unexpiredVersion := intMax(policy.MinAvailableVersion, 1)
+	for ; unexpiredVersion < policy.LatestVersion; unexpiredVersion += 1 {
+
+		keyVersion, ok := policy.Keys[strconv.Itoa(unexpiredVersion)]
+		if !ok {
+			continue
+		}
+
+		keyExpiresAt := keyVersion.CreationTime.Add(config.KeyRotationPeriod).Add(config.TokenTTL)
+
+		if logger.IsDebug() {
+			logger.Debug(
+				fmt.Sprintf(
+					"Checking Key: mount=%s, version=%d created=%s, expires=%s",
+					mount,
+					unexpiredVersion,
+					keyVersion.CreationTime.Format(time.RFC3339),
+					keyExpiresAt.Format(time.RFC3339),
+				),
+			)
+		}
+
+		if keyExpiresAt.After(time.Now()) {
+			break
+		}
+	}
+
+	if unexpiredVersion == policy.MinAvailableVersion {
+		policy.Unlock()
+		return nil
+	}
+
+	policy.Unlock()
+	policy.Lock(true)
+	defer policy.Unlock()
+
+	// Recheck after exclusive lock
+	if unexpiredVersion == policy.MinAvailableVersion {
+		return nil
+	}
+
+	// Ensure that cache doesn't get corrupted in error cases
+	previousMinAvailableVersion := policy.MinAvailableVersion
+	previousMinDecryptionVersion := policy.MinDecryptionVersion
+
+	policy.MinAvailableVersion = unexpiredVersion
+	policy.MinDecryptionVersion = unexpiredVersion
+
+	if err := policy.Persist(ctx, stg); err != nil {
+		policy.MinAvailableVersion = previousMinAvailableVersion
+		policy.MinDecryptionVersion = previousMinDecryptionVersion
+		return err
+	}
+
+	logger.Info(
+		fmt.Sprintf(
+			"Key Trimmed: mount=%s, latest=%d, min-available=%d, min-decryption=%d",
+			mount,
+			policy.LatestVersion,
+			policy.MinAvailableVersion,
+			policy.MinDecryptionVersion,
+		),
+	)
+
+	return nil
+}
+
+const backendHelp = `
+The Qdrant JWT secrets engine signs JWTs.
 `

@@ -3,10 +3,12 @@ module github.com/migrx-io/vault-plugin-secrets-qdrant
 go 1.22.5
 
 require (
-	github.com/hashicorp/errwrap v1.1.0
+	github.com/go-jose/go-jose/v4 v4.0.1
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/hashicorp/vault/sdk v0.9.0
+	github.com/mariuszs/friendlyid-go v0.0.0-20200911181514-555cced97798
 )
 
 require (
@@ -15,9 +17,9 @@ require (
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-kms-wrapping/entropy/v2 v2.0.0 // indirect
