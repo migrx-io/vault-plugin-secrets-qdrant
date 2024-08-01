@@ -26,7 +26,7 @@ type Config struct {
 	URL string
 
 	// API Key/ Sign key to sign and verify token
-	Key string
+	SignKey string
 
 	// SignatureAlgorithm is the signing algorithm to use.
 	SignatureAlgorithm jose.SignatureAlgorithm

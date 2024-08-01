@@ -57,7 +57,7 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 	claims["exp"] = jwt.NumericDate(expiry.Unix())
 
 	// Get key and issue JWT
-	key := []byte(config.Key)
+	key := []byte(config.SignKey)
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: config.SignatureAlgorithm, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
 
 	if err != nil {

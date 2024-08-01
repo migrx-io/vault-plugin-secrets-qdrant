@@ -10,7 +10,7 @@ import (
 
 const (
 	keyURL                = "url"
-	keyKey                = "key"
+	keySignKey            = "sig_key"
 	keySignatureAlgorithm = "sig_alg"
 	keyRSAKeyBits         = "rsa_key_bits"
 	keyRotationDuration   = "key_ttl"
@@ -28,7 +28,7 @@ func pathConfig(b *backend) *framework.Path {
 				Required:    true,
 			},
 
-			keyKey: {
+			keySignKey: {
 				Type:        framework.TypeString,
 				Description: `API Key/ Sign key to sign and verify token`,
 				Required:    true,
@@ -100,7 +100,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 	if key == "" {
 		return logical.ErrorResponse("key is empty"), logical.ErrInvalidRequest
 	}
-	config.Key = key
+	config.SignKey = key
 
 	if newRawSignatureAlgorithmName, ok := d.GetOk(keySignatureAlgorithm); ok {
 		newSignatureAlgorithmName, ok := newRawSignatureAlgorithmName.(string)
@@ -167,7 +167,7 @@ func configResponse(config *Config) (*logical.Response, error) {
 	return &logical.Response{
 		Data: map[string]interface{}{
 			keyURL:                config.URL,
-			keyKey:                config.Key,
+			keySignKey:            config.SignKey,
 			keySignatureAlgorithm: config.SignatureAlgorithm,
 			keyRSAKeyBits:         config.RSAKeyBits,
 			keyRotationDuration:   config.KeyRotationPeriod.String(),
