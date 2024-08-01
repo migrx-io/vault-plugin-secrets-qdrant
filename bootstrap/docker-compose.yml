@@ -24,3 +24,16 @@ services:
       - 6335
     volumes:
       - ./qdrant_data:/qdrant/storage
+
+  vault:
+    build:
+      context: ..
+      dockerfile: ./bootstrap/vault/Dockerfile
+    restart: always
+    container_name: vault
+    ports:
+      - 8200:8200
+    expose:
+      - 8200
+    volumes:
+      - ./vault/config.hcl:/vault/config.hcl

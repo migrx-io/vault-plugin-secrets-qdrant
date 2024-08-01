@@ -14,8 +14,9 @@ fmt:
 	@gofmt -l -w .
 
 .PHONY: setup-env
-setup-env:
-	@cd bootstrap && docker compose -f ./docker-compose.yml down && docker compose -f ./docker-compose.yml up -d
+setup-env: build
+	@docker rmi -f bootstrap-vault
+	@cd bootstrap && docker compose -f ./docker-compose.yml down && docker compose -f ./docker-compose.yml up --build -d
 
 .PHONY: teardown-env
 teardown-env:
