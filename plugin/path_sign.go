@@ -56,9 +56,9 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 	expiry := now.Add(config.TokenTTL)
 	claims["exp"] = jwt.NumericDate(expiry.Unix())
 
-    // Get key and issue JWT
-    key := []byte(config.Key)
-    sig, err := jose.NewSigner(jose.SigningKey{Algorithm: config.SignatureAlgorithm, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
+	// Get key and issue JWT
+	key := []byte(config.Key)
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: config.SignatureAlgorithm, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
 
 	if err != nil {
 		return logical.ErrorResponse("error making signer jwt: %v", err), err
@@ -69,7 +69,7 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 		return logical.ErrorResponse("error serializing jwt: %v", err), err
 	}
 
-    // TODO send data to database
+	// TODO send data to database
 
 	resp := b.Secret(jwtSecretsTokenType).Response(
 		map[string]interface{}{

@@ -11,7 +11,7 @@ import (
 const (
 	keyStorageRolePath = "role"
 	keyRoleName        = "name"
-	keyClaims = "claims"
+	keyClaims          = "claims"
 )
 
 type Role struct {
@@ -41,7 +41,7 @@ func pathRole(b *backend) []*framework.Path {
 				keyClaims: {
 					Type:        framework.TypeMap,
 					Description: `Claims to be set on issued JWTs. Each claim must be allowed by the configuration.`,
-                    Required: true,
+					Required:    true,
 				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{

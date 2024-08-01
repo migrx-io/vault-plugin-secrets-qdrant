@@ -3,10 +3,9 @@ package qdrant
 import (
 	"context"
 	"github.com/go-jose/go-jose/v4"
-	"time"
-    "errors"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"time"
 )
 
 const (
@@ -26,13 +25,13 @@ func pathConfig(b *backend) *framework.Path {
 			keyURL: {
 				Type:        framework.TypeString,
 				Description: `Connection string to Qdrant database`,
-                Required:    true,
+				Required:    true,
 			},
 
 			keyKey: {
 				Type:        framework.TypeString,
 				Description: `API Key/ Sign key to sign and verify token`,
-                Required:    true,
+				Required:    true,
 			},
 
 			keySignatureAlgorithm: {
@@ -92,14 +91,16 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 	url := d.Get("url").(string)
 
 	if url == "" {
-		return nil, errors.New("url is empty")
+		return logical.ErrorResponse("url is empty"), logical.ErrInvalidRequest
 	}
+	config.URL = url
 
 	key := d.Get("key").(string)
 
 	if key == "" {
-		return nil, errors.New("key is empty")
+		return logical.ErrorResponse("key is empty"), logical.ErrInvalidRequest
 	}
+	config.Key = key
 
 	if newRawSignatureAlgorithmName, ok := d.GetOk(keySignatureAlgorithm); ok {
 		newSignatureAlgorithmName, ok := newRawSignatureAlgorithmName.(string)

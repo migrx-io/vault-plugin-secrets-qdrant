@@ -174,8 +174,8 @@ func (b *backend) clearConfig(ctx context.Context, stg logical.Storage) error {
 }
 
 func (c *Config) cache() *Config {
-    return c
-}  
+	return c
+}
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig(sys logical.SystemView) *Config {
