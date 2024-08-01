@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"path"
-	"regexp"
 )
 
 const (
@@ -126,13 +125,6 @@ func (b *backend) pathRolesWrite(ctx context.Context, req *logical.Request, d *f
 	if role == nil {
 		role = &Role{}
 	}
-
-	config, err := b.getConfig(ctx, req.Storage)
-	if err != nil {
-		return nil, err
-	}
-
-	createOperation := req.Operation == logical.CreateOperation
 
 	if newClaims, ok := d.GetOk(keyClaims); ok {
 		role.Claims = newClaims.(map[string]interface{})

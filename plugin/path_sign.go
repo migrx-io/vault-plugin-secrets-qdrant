@@ -6,7 +6,6 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	"regexp"
 	"time"
 )
 
@@ -75,22 +74,20 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 	expiry := now.Add(config.TokenTTL)
 	claims["exp"] = jwt.NumericDate(expiry.Unix())
 
-	policy, err := b.getPolicy(ctx, req.Storage, config, req.MountPoint)
+    // Get key and issue JWT
+    key := []byte(config.Key)
+    sig, err := jose.NewSigner(jose.SigningKey{Algorithm: config.SignatureAlgorithm, Key: key}, (&jose.SignerOptions{}).WithType("JWT"))
+
 	if err != nil {
-		return logical.ErrorResponse("error getting key: %v", err), err
+		return logical.ErrorResponse("error making signer jwt: %v", err), err
 	}
 
-	signer := &PolicySigner{
-		BackendId:          b.id,
-		SignatureAlgorithm: config.SignatureAlgorithm,
-		Policy:             policy,
-		SignerOptions:      (&jose.SignerOptions{}).WithType("JWT"),
-	}
-
-	token, err := jwt.Signed(signer).Claims(claims).CompactSerialize()
+	token, err := jwt.Signed(sig).Claims(claims).Serialize()
 	if err != nil {
 		return logical.ErrorResponse("error serializing jwt: %v", err), err
 	}
+
+    // TODO send data to database
 
 	resp := b.Secret(jwtSecretsTokenType).Response(
 		map[string]interface{}{

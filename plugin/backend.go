@@ -65,10 +65,12 @@ func createBackend(conf *logical.BackendConfig) (*backend, error) {
 				"config",
 			},
 		},
-		Paths: []*framework.Path(
-			pathConfig(&b),
+		Paths: framework.PathAppend(
+			[]*framework.Path{
+                pathConfig(&b),
+                pathSign(&b),
+            },
 			pathRole(&b),
-			pathSign(&b),
 		),
 		Secrets: []*framework.Secret{
 			b.token(),

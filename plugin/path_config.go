@@ -3,14 +3,15 @@ package qdrant
 import (
 	"context"
 	"github.com/go-jose/go-jose/v4"
-	"regexp"
 	"time"
-
+    "errors"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
 const (
+	keyURL                = "url"
+	keyKey                = "key"
 	keySignatureAlgorithm = "sig_alg"
 	keyRSAKeyBits         = "rsa_key_bits"
 	keyRotationDuration   = "key_ttl"
@@ -22,12 +23,12 @@ func pathConfig(b *backend) *framework.Path {
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
 
-			url: {
+			keyURL: {
 				Type:        framework.TypeString,
 				Description: `Connection string to Qdrant database`,
 			},
 
-			key: {
+			keyKey: {
 				Type:        framework.TypeString,
 				Description: `API Key/ Sign key to sign and verify token`,
 			},
@@ -94,7 +95,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 
 	key := d.Get("key").(string)
 
-	if url == "" {
+	if key == "" {
 		return nil, errors.New("key is empty")
 	}
 

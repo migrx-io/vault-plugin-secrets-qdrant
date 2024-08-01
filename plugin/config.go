@@ -173,6 +173,10 @@ func (b *backend) clearConfig(ctx context.Context, stg logical.Storage) error {
 	return nil
 }
 
+func (c *Config) cache() *Config {
+    return c
+}  
+
 // DefaultConfig returns a default configuration.
 func DefaultConfig(sys logical.SystemView) *Config {
 	defaultKeyRotationPeriod, _ := time.ParseDuration(DefaultKeyRotationPeriod)
