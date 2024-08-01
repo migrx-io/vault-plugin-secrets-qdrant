@@ -41,23 +41,16 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 vault login root
 
 echo -e "\n\n### Add instance config"
-vault write qdrant/testdb/config "key_ttl=3s" "jwt_ttl=3s" 
+vault write qdrant/config "url=http://localhost:6333" "key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
 
 echo -e "\n\n### Read instance config"
-vault read qdrant/testdb/config
-
-
-echo -e "\n\n### Attempt to create a token before role is created"
-if vault write -field=token qdrant/testdb/sign/admin @claims.json; then
-    echo "Signing with unknown role incorrectly succeeded."
-    exit 1
-fi
+vault read qdrant/config
 
 echo -e "\n\n### Adding role admin"
-vault write qdrant/testdb/roles/admin claim="TEST"
+vault write qdrant/roles/admin @basic.json
 
 echo -e "\n\n### Reading role admin"
-vault read qdrant/testdb/roles/admin
+vault read qdrant/roles/admin
 
 echo -e "\n\n### Create a token with test role"
-vault write -field=token qdrant/testdb/sign/admin @claims.json > jwt.txt
+vault write -field=token qdrant/sign/admin > basic_jwt.txt

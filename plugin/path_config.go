@@ -26,11 +26,13 @@ func pathConfig(b *backend) *framework.Path {
 			keyURL: {
 				Type:        framework.TypeString,
 				Description: `Connection string to Qdrant database`,
+                Required:    true,
 			},
 
 			keyKey: {
 				Type:        framework.TypeString,
 				Description: `API Key/ Sign key to sign and verify token`,
+                Required:    true,
 			},
 
 			keySignatureAlgorithm: {

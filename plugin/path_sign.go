@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-const (
-	keyClaims = "claims"
-)
-
 func pathSign(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: "sign/" + framework.GenericNameRegex(keyRoleName),
@@ -20,11 +16,6 @@ func pathSign(b *backend) *framework.Path {
 			keyRoleName: {
 				Type:        framework.TypeLowerCaseString,
 				Description: "Name of the role",
-				Required:    true,
-			},
-			keyClaims: {
-				Type:        framework.TypeMap,
-				Description: `JSON claims set to sign.`,
 				Required:    true,
 			},
 		},
@@ -49,16 +40,7 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 		return logical.ErrorResponse("unknown role"), logical.ErrInvalidRequest
 	}
 
-	// Gather "freeform" claims
-	rawClaims, ok := d.GetOk(keyClaims)
-	if !ok {
-		rawClaims = map[string]interface{}{}
-	}
-
-	claims, ok := rawClaims.(map[string]interface{})
-	if !ok {
-		return logical.ErrorResponse("claims not a map"), logical.ErrInvalidRequest
-	}
+	var claims map[string]interface{}
 
 	config, err := b.getConfig(ctx, req.Storage)
 	if err != nil {
