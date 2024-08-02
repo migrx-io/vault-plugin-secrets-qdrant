@@ -2,275 +2,179 @@ package qdrant
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"github.com/go-jose/go-jose/v4"
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/helper/errutil"
-	"github.com/hashicorp/vault/sdk/helper/keysutil"
-	"github.com/hashicorp/vault/sdk/logical"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/logical"
 )
 
-type backend struct {
+// QdrantBackend defines an object that
+// extends the Vault backend and stores the
+// target API's client.
+type QdrantBackend struct {
 	*framework.Backend
-	lock  *sync.RWMutex
-    client *QdrantClient
+	lock   sync.RWMutex
+	client *QdrantClient
 }
 
-// Factory returns a new backend as logical.Backend.
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
-	b, err := createBackend(conf)
-	if err != nil {
-		return nil, err
-	}
+	b := backend()
 	if err := b.Setup(ctx, conf); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-func createBackend(conf *logical.BackendConfig) (*backend, error) {
-	var b backend
-
-	var err error
-	b.lockManager, err = keysutil.NewLockManager(true, minCacheSize)
-	if err != nil {
-		return nil, err
-	}
-
-	b.id = conf.BackendUUID
-	b.cachedConfigLock = new(sync.RWMutex)
-	b.idGen = friendlyIdGenerator{}
+// backend defines the target API backend
+// for Vault. It must include each path
+// and the secrets it will store.
+func backend() *QdrantBackend {
+	var b = QdrantBackend{}
 
 	b.Backend = &framework.Backend{
-		BackendType: logical.TypeLogical,
-		Help:        strings.TrimSpace(backendHelp),
+		Help: strings.TrimSpace(backendHelp),
 		PathsSpecial: &logical.Paths{
+			LocalStorage: []string{},
 			SealWrapStorage: []string{
 				"config",
+				"role/*",
 			},
 		},
 		Paths: framework.PathAppend(
-			[]*framework.Path{
-				pathConfig(&b),
-				pathCreds(&b),
-			},
-			pathRole(&b),
+			pathConfig(&b),
+            // pathRole(&b),
+			// pathJWT(&b),
 		),
 		Secrets: []*framework.Secret{
-			b.token(),
+			// b.hashiCupsToken(),
 		},
-		InitializeFunc: b.initialize,
-		PeriodicFunc:   b.periodic,
-		Invalidate:     b.invalidate,
-		Clean:          b.clean,
+		BackendType:       logical.TypeLogical,
+		Invalidate:        b.invalidate,
 	}
-	return &b, nil
+	return &b
 }
 
-func (b *backend) initialize(ctx context.Context, req *logical.InitializationRequest) error {
-
-	if _, err := b.getConfig(ctx, req.Storage); err != nil {
-		return err
-	}
-
-	b.Logger().Debug("Initialized")
-
-	return nil
-}
-
-func (b *backend) periodic(ctx context.Context, req *logical.Request) error {
-
-	config, err := b.getConfig(ctx, req.Storage)
-	if err != nil {
-		return err
-	}
-
-	policy, err := b.getPolicy(ctx, req.Storage, config, req.MountPoint)
-	if err != nil {
-		return err
-	}
-
-	return b.pruneKeyVersions(ctx, req.Storage, policy, config, req.MountPoint)
-}
-
-func (b *backend) invalidate(_ context.Context, key string) {
-	if b.Logger().IsDebug() {
-		b.Logger().Debug("invalidating key", "key", key)
-	}
-	switch {
-	case strings.HasPrefix(key, "policy/"):
-		name := strings.TrimPrefix(key, "policy/")
-		b.lockManager.InvalidatePolicy(name)
-	case strings.HasPrefix(key, "config"):
-		b.cachedConfigLock.Lock()
-		defer b.cachedConfigLock.Unlock()
-		b.cachedConfig = nil
-	}
-}
-
-func (b *backend) clean(_ context.Context) {
-	// Nothing to do
-}
-
-func (b *backend) getPolicy(ctx context.Context, stg logical.Storage, config *Config, mount string) (*keysutil.Policy, error) {
-
-	polReq := keysutil.PolicyRequest{
-		Upsert:               true,
-		Storage:              stg,
-		Name:                 mainKeyName,
-		Derived:              false,
-		Convergent:           false,
-		Exportable:           false,
-		AllowPlaintextBackup: false,
-	}
-
-	var err error
-
-	switch config.SignatureAlgorithm {
-	case jose.RS256, jose.RS384, jose.RS512:
-		switch config.RSAKeyBits {
-		case 2048:
-			polReq.KeyType = keysutil.KeyType_RSA2048
-		case 3072:
-			polReq.KeyType = keysutil.KeyType_RSA3072
-		case 4096:
-			polReq.KeyType = keysutil.KeyType_RSA4096
-		default:
-			err = errutil.InternalError{Err: "unsupported RSA key size"}
-		}
-	case jose.ES256:
-		polReq.KeyType = keysutil.KeyType_ECDSA_P256
-	case jose.ES384:
-		polReq.KeyType = keysutil.KeyType_ECDSA_P384
-	case jose.ES512:
-		polReq.KeyType = keysutil.KeyType_ECDSA_P521
-	default:
-		err = errutil.InternalError{Err: "unknown/unsupported signature algorithm"}
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	policy, _, err := b.lockManager.GetPolicy(ctx, polReq, rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := b.rotateIfNecessary(ctx, stg, policy, config, mount); err != nil {
-		return nil, err
-	}
-
-	return policy, nil
-}
-
-func (b *backend) rotateIfNecessary(ctx context.Context, stg logical.Storage, policy *keysutil.Policy, config *Config, mount string) error {
-	policy.Lock(true)
-	defer policy.Unlock()
-
-	latestKey, ok := policy.Keys[strconv.Itoa(policy.LatestVersion)]
-	if !ok {
-		return nil
-	}
-
-	if latestKey.CreationTime.Add(config.KeyRotationPeriod).After(time.Now()) {
-		return nil
-	}
-
-	err := policy.Rotate(ctx, stg, rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	b.lockManager.InvalidatePolicy(policy.Name)
-
-	b.Logger().Info(fmt.Sprintf("Key Rotated: mount=%s", mount))
-
-	return nil
-}
-
-func (b *backend) pruneKeyVersions(ctx context.Context, stg logical.Storage, policy *keysutil.Policy, config *Config, mount string) error {
-
-	logger := b.Logger()
-
-	if logger.IsDebug() {
-		logger.Debug(fmt.Sprintf("Pruning Keys: mount=%s", mount))
-	}
-
-	policy.Lock(false)
-
-	unexpiredVersion := intMax(policy.MinAvailableVersion, 1)
-	for ; unexpiredVersion < policy.LatestVersion; unexpiredVersion += 1 {
-
-		keyVersion, ok := policy.Keys[strconv.Itoa(unexpiredVersion)]
-		if !ok {
-			continue
-		}
-
-		keyExpiresAt := keyVersion.CreationTime.Add(config.KeyRotationPeriod).Add(config.TokenTTL)
-
-		if logger.IsDebug() {
-			logger.Debug(
-				fmt.Sprintf(
-					"Checking Key: mount=%s, version=%d created=%s, expires=%s",
-					mount,
-					unexpiredVersion,
-					keyVersion.CreationTime.Format(time.RFC3339),
-					keyExpiresAt.Format(time.RFC3339),
-				),
-			)
-		}
-
-		if keyExpiresAt.After(time.Now()) {
-			break
-		}
-	}
-
-	if unexpiredVersion == policy.MinAvailableVersion {
-		policy.Unlock()
-		return nil
-	}
-
-	policy.Unlock()
-	policy.Lock(true)
-	defer policy.Unlock()
-
-	// Recheck after exclusive lock
-	if unexpiredVersion == policy.MinAvailableVersion {
-		return nil
-	}
-
-	// Ensure that cache doesn't get corrupted in error cases
-	previousMinAvailableVersion := policy.MinAvailableVersion
-	previousMinDecryptionVersion := policy.MinDecryptionVersion
-
-	policy.MinAvailableVersion = unexpiredVersion
-	policy.MinDecryptionVersion = unexpiredVersion
-
-	if err := policy.Persist(ctx, stg); err != nil {
-		policy.MinAvailableVersion = previousMinAvailableVersion
-		policy.MinDecryptionVersion = previousMinDecryptionVersion
-		return err
-	}
-
-	logger.Info(
-		fmt.Sprintf(
-			"Key Trimmed: mount=%s, latest=%d, min-available=%d, min-decryption=%d",
-			mount,
-			policy.LatestVersion,
-			policy.MinAvailableVersion,
-			policy.MinDecryptionVersion,
-		),
-	)
-
-	return nil
-}
-
+// backendHelp should contain help information for the backend
 const backendHelp = `
-The Qdrant JWT secrets engine signs JWTs.
+The Qdrant secrets backend dynamically generates user tokens.
 `
+
+// reset clears any client configuration for a new
+// backend to be configured
+func (b *QdrantBackend) reset() {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.client = nil
+}
+
+// invalidate clears an existing client configuration in
+// the backend
+func (b *QdrantBackend) invalidate(ctx context.Context, key string) {
+	if key == "config" {
+		b.reset()
+	}
+}
+
+// getClient locks the backend as it configures and creates a
+// a new client for the target API
+func (b *QdrantBackend) getClient(ctx context.Context, s logical.Storage) (*QdrantClient, error) {
+	b.lock.RLock()
+	unlockFunc := b.lock.RUnlock
+	defer func() { unlockFunc() }()
+
+	if b.client != nil {
+		return b.client, nil
+	}
+
+	b.lock.RUnlock()
+	b.lock.Lock()
+	unlockFunc = b.lock.Unlock
+	return b.client, nil
+}
+
+func (b *QdrantBackend) put(ctx context.Context, s logical.Storage, path string, data interface{}) error {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	entry, err := logical.StorageEntryJSON(path, data)
+	if err != nil {
+		return fmt.Errorf("error creating storage entry: %w", err)
+	}
+
+	if err := s.Put(ctx, entry); err != nil {
+		return fmt.Errorf("error writing to backend: %w", err)
+	}
+
+	return nil
+}
+
+func getFromStorage[T any](ctx context.Context, s logical.Storage, path string) (*T, error) {
+	if path == "" {
+		return nil, fmt.Errorf("missing path")
+	}
+
+	// get data entry from storage backend
+	entry, err := s.Get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving Data: %w", err)
+	}
+
+	if entry == nil {
+		return nil, nil
+	}
+
+	// convert json data to T
+	var t T
+	if err := entry.DecodeJSON(&t); err != nil {
+		return nil, fmt.Errorf("error decoding JWT data: %w", err)
+	}
+	return &t, nil
+}
+
+func deleteFromStorage(ctx context.Context, s logical.Storage, path string) error {
+	if err := s.Delete(ctx, path); err != nil {
+		return fmt.Errorf("error deleting data: %w", err)
+	}
+	return nil
+}
+
+func storeInStorage[T any](ctx context.Context, s logical.Storage, path string, t *T) error {
+	entry, err := logical.StorageEntryJSON(path, t)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Put(ctx, entry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readOperation[T any](ctx context.Context, s logical.Storage, path string) (*logical.Response, error) {
+	t, err := getFromStorage[T](ctx, s, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if t == nil {
+		return nil, nil
+	}
+
+	var groupMap map[string]interface{}
+	err = StructToMap(t, &groupMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return &logical.Response{
+		Data: groupMap,
+	}, nil
+}
+
+func (b *QdrantBackend) periodicFunc(ctx context.Context, sys *logical.Request) error {
+	b.Logger().Debug("Periodic: starting periodic func")
+	return nil
+}

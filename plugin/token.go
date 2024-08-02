@@ -10,7 +10,7 @@ const (
 	jwtSecretsTokenType = "jwt_token"
 )
 
-func (b *backend) token() *framework.Secret {
+func (b *QdrantBackend) token() *framework.Secret {
 	return &framework.Secret{
 		Type: jwtSecretsTokenType,
 		Fields: map[string]*framework.FieldSchema{
