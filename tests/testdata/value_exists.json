@@ -1,14 +1,16 @@
 {
-  "value_exists": {
-    "collection": "users",
-    "matches": [
-      { "key": "role", "value": "admin" }
-    ]
-  },
-  "access": [
-    {
-      "collection": "my_collection",
-      "access": "rw"
+    "claims":{
+        "value_exists": {
+            "collection": "users",
+            "matches": [
+            { "key": "role", "value": "admin" }
+            ]
+        },
+        "access": [
+            {
+            "collection": "my_collection",
+            "access": "rw"
+            }
+        ]
     }
-  ]
 }

@@ -15,21 +15,10 @@ import (
 	"time"
 )
 
-const (
-	configPath  = "config"
-	mainKeyName = "main"
-
-	// Minimum cache size for transit backend
-	minCacheSize = 10
-)
-
 type backend struct {
 	*framework.Backend
-	id               string
-	lockManager      *keysutil.LockManager
-	cachedConfig     *Config
-	cachedConfigLock *sync.RWMutex
-	idGen            uniqueIdGenerator
+	lock  *sync.RWMutex
+    client *QdrantClient
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -68,7 +57,7 @@ func createBackend(conf *logical.BackendConfig) (*backend, error) {
 		Paths: framework.PathAppend(
 			[]*framework.Path{
 				pathConfig(&b),
-				pathSign(&b),
+				pathCreds(&b),
 			},
 			pathRole(&b),
 		),
@@ -117,7 +106,7 @@ func (b *backend) invalidate(_ context.Context, key string) {
 	case strings.HasPrefix(key, "policy/"):
 		name := strings.TrimPrefix(key, "policy/")
 		b.lockManager.InvalidatePolicy(name)
-	case strings.HasPrefix(key, configPath):
+	case strings.HasPrefix(key, "config"):
 		b.cachedConfigLock.Lock()
 		defer b.cachedConfigLock.Unlock()
 		b.cachedConfig = nil

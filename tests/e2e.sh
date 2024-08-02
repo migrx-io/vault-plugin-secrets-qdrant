@@ -41,7 +41,7 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 vault login root
 
 echo -e "\n\n### Add instance config"
-vault write qdrant/config "url=http://localhost:6333" "key_sig=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
+vault write qdrant/config "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
 
 echo -e "\n\n### Read instance config"
 vault read qdrant/config

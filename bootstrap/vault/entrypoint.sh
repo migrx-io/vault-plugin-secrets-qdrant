@@ -3,7 +3,7 @@
 PLUGIN_NAME=vault-plugin-secrets-qdrant
 
 # Configure vault
-vault server -dev -dev-root-token-id="root" -dev-listen-address=0.0.0.0:8200 -config=/vault/config.hcl &
+vault server -dev -log-level=debug -dev-root-token-id="root" -dev-listen-address=0.0.0.0:8200 -config=/vault/config.hcl &
 VAULT_PROC=$!
 
 sleep 3

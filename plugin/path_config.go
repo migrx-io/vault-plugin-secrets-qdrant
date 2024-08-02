@@ -9,6 +9,12 @@ import (
 )
 
 const (
+
+	configPath       = "config"
+	configPrefix     = "config/"
+	configStorageKey = "config"
+
+
 	keyURL                = "url"
 	keySignKey            = "sig_key"
 	keySignatureAlgorithm = "sig_alg"
@@ -19,9 +25,14 @@ const (
 
 func pathConfig(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: "config",
+		Pattern: configPrefix + framework.GenericNameRegex("name"),
 		Fields: map[string]*framework.FieldSchema{
-
+            Fields: map[string]*framework.FieldSchema{                             
+            "name": {                                                      
+                    Type:        framework.TypeString,                             
+                    Description: "Db identifier",                            
+                    Required:    false,                                            
+            },  
 			keyURL: {
 				Type:        framework.TypeString,
 				Description: `Connection string to Qdrant database`,
@@ -74,7 +85,10 @@ func pathConfig(b *backend) *framework.Path {
 }
 
 func (b *backend) pathConfigExistenceCheck(ctx context.Context, req *logical.Request, _ *framework.FieldData) (bool, error) {
-	savedConfig, err := req.Storage.Get(ctx, configPath)
+
+	name := d.GetOk("name")
+
+	savedConfig, err := req.Storage.Get(ctx, configPath + "/" + dbname)
 	if err != nil {
 		return false, err
 	}
@@ -88,19 +102,24 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 		return nil, err
 	}
 
-	url := d.Get("url").(string)
+    b.Logger().Debug("pathConfigWrite..")
 
-	if url == "" {
-		return logical.ErrorResponse("url is empty"), logical.ErrInvalidRequest
+	url, ok := d.Get("url").(string)
+
+	if url == "" || !ok{
+		return logical.ErrorResponse("url is empty or not defined"), logical.ErrInvalidRequest
 	}
 	config.URL = url
 
-	key := d.Get("key").(string)
+	key, ok := d.Get("sig_key").(string)
 
-	if key == "" {
-		return logical.ErrorResponse("key is empty"), logical.ErrInvalidRequest
+	if key == "" || !ok {
+		return logical.ErrorResponse("sig_key is empty or not defined"), logical.ErrInvalidRequest
 	}
 	config.SignKey = key
+
+
+    b.Logger().Debug("pathConfigWrite: config %v", config)
 
 	if newRawSignatureAlgorithmName, ok := d.GetOk(keySignatureAlgorithm); ok {
 		newSignatureAlgorithmName, ok := newRawSignatureAlgorithmName.(string)

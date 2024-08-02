@@ -15,11 +15,11 @@ fmt:
 
 .PHONY: setup-env
 setup-env: build
-	@cd bootstrap && docker compose -f ./docker-compose.yml down && docker compose -f ./docker-compose.yml up --build -d
+	@cd bootstrap && docker compose -f ./docker-compose.yml down -t 1 && docker compose -f ./docker-compose.yml up --build -d
 
 .PHONY: teardown-env
 teardown-env:
-	@cd bootstrap && docker-compose -f ./docker-compose.yml down
+	@cd bootstrap && docker-compose -f ./docker-compose.yml down -t 1
 	@docker rmi -f bootstrap-vault
 
 .PHONY: e2e

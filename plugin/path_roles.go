@@ -76,7 +76,7 @@ func pathRole(b *backend) []*framework.Path {
 }
 
 func (b *backend) pathRoleExistenceCheck(ctx context.Context, req *logical.Request, d *framework.FieldData) (bool, error) {
-	name := d.Get("name").(string)
+	name := d.Get(keyRoleName).(string)
 
 	role, err := req.Storage.Get(ctx, path.Join(keyStorageRolePath, name))
 	if err != nil {

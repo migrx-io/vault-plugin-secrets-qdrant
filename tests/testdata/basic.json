@@ -1,3 +1,5 @@
 {
- "access": "r"
+    "claims":{
+        "access": "r"
+    }
 }

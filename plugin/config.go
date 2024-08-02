@@ -58,7 +58,7 @@ func (b *backend) getConfig(ctx context.Context, stg logical.Storage) (*Config, 
 	}
 
 	// Attempt to load config from storage & cache
-	rawConfig, err := stg.Get(ctx, configPath)
+	rawConfig, err := stg.Get(ctx, "config")
 	if err != nil {
 		return nil, err
 	}

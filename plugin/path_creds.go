@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-func pathSign(b *backend) *framework.Path {
+func pathCreds(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: "sign/" + framework.GenericNameRegex(keyRoleName),
+		Pattern: "creds/" + framework.GenericNameRegex(keyRoleName),
 		Fields: map[string]*framework.FieldSchema{
 			keyRoleName: {
 				Type:        framework.TypeLowerCaseString,
@@ -20,16 +20,16 @@ func pathSign(b *backend) *framework.Path {
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
-			logical.UpdateOperation: &framework.PathOperation{
-				Callback: b.pathSignWrite,
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: b.pathCredsRead,
 			},
 		},
-		HelpSynopsis:    pathSignHelpSyn,
-		HelpDescription: pathSignHelpDesc,
+		HelpSynopsis:    pathCredsHelpSyn,
+		HelpDescription: pathCredsHelpDesc,
 	}
 }
 
-func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	roleName := d.Get("name").(string)
 
 	role, err := b.getRole(ctx, req.Storage, roleName)
@@ -40,7 +40,7 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 		return logical.ErrorResponse("unknown role"), logical.ErrInvalidRequest
 	}
 
-	var claims map[string]interface{}
+    claims := map[string]interface{}{}
 
 	config, err := b.getConfig(ctx, req.Storage)
 	if err != nil {
@@ -82,10 +82,10 @@ func (b *backend) pathSignWrite(ctx context.Context, req *logical.Request, d *fr
 	return resp, nil
 }
 
-const pathSignHelpSyn = `
-Sign a set of claims.
+const pathCredsHelpSyn = `
+Generate JWT token. 
 `
 
-const pathSignHelpDesc = `
-Sign a set of claims.
+const pathCredsHelpDesc = `
+Generate JWT token. 
 `
