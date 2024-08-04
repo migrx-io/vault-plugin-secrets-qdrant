@@ -26,8 +26,8 @@ teardown-env:
 e2e:
 	@docker build --network=host --progress=plain --no-cache -f tests/Dockerfile -t vault-jwt-e2e-test .
 
-.PHONY: test
-test:
+.PHONY: tests
+tests:
 	@go test -v ./...
 
 .PHONY: clean
