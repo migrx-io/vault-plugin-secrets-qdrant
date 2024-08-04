@@ -44,14 +44,14 @@ func backend() *QdrantBackend {
 		},
 		Paths: framework.PathAppend(
 			pathConfig(&b),
-            // pathRole(&b),
+			// pathRole(&b),
 			// pathJWT(&b),
 		),
 		Secrets: []*framework.Secret{
 			// b.hashiCupsToken(),
 		},
-		BackendType:       logical.TypeLogical,
-		Invalidate:        b.invalidate,
+		BackendType: logical.TypeLogical,
+		Invalidate:  b.invalidate,
 	}
 	return &b
 }
@@ -94,22 +94,6 @@ func (b *QdrantBackend) getClient(ctx context.Context, s logical.Storage) (*Qdra
 	return b.client, nil
 }
 
-func (b *QdrantBackend) put(ctx context.Context, s logical.Storage, path string, data interface{}) error {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
-	entry, err := logical.StorageEntryJSON(path, data)
-	if err != nil {
-		return fmt.Errorf("error creating storage entry: %w", err)
-	}
-
-	if err := s.Put(ctx, entry); err != nil {
-		return fmt.Errorf("error writing to backend: %w", err)
-	}
-
-	return nil
-}
-
 func getFromStorage[T any](ctx context.Context, s logical.Storage, path string) (*T, error) {
 	if path == "" {
 		return nil, fmt.Errorf("missing path")
@@ -128,7 +112,7 @@ func getFromStorage[T any](ctx context.Context, s logical.Storage, path string) 
 	// convert json data to T
 	var t T
 	if err := entry.DecodeJSON(&t); err != nil {
-		return nil, fmt.Errorf("error decoding JWT data: %w", err)
+		return nil, fmt.Errorf("error decoding data: %w", err)
 	}
 	return &t, nil
 }

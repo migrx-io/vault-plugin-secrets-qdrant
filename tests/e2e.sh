@@ -40,11 +40,25 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 
 vault login root
 
+# echo -e "\n\n### Read all instance config"
+# vault read qdrant/config/
+
 echo -e "\n\n### Add instance config"
-vault write qdrant/config "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
+vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
 
 echo -e "\n\n### Read instance config"
-vault read qdrant/config
+vault read qdrant/config/instance1
+
+echo -e "\n\n### Read all instance config"
+vault list qdrant/config
+
+echo -e "\n\n### Delete instance config"
+vault delete qdrant/config/instance1
+
+
+echo -e "\n\n### Add instance config"
+vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
+
 
 echo -e "\n\n### Adding role admin"
 vault write qdrant/roles/admin @basic.json

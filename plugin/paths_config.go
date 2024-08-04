@@ -6,24 +6,20 @@ import (
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-
 )
 
 const (
-
-	configPath       = "config"
-	configPrefix     = "config/"
+	configPath   = "config"
+	configPrefix = "config/"
 )
 
-
 type ConfigParameters struct {
-    DBId                string                    `json:"dbId"`
-    URL                 string                    `json:"url"`
-    SignKey             string                    `json:"sig_Key"`
-    SignatureAlgorithm  string                    `json:"sig_alg,omitempty"`
-    RSAKeyBits          int                       `json:"rsa_key_bits,omitempty"`
-    TokenTTL            string                    `json:"jwt_ttl,omitempty"`
-
+	DBId               string `json:"dbId"`
+	URL                string `json:"url"`
+	SignKey            string `json:"sig_Key"`
+	SignatureAlgorithm string `json:"sig_alg,omitempty"`
+	RSAKeyBits         int    `json:"rsa_key_bits,omitempty"`
+	TokenTTL           string `json:"jwt_ttl,omitempty"`
 }
 
 func pathConfig(b *QdrantBackend) []*framework.Path {
@@ -32,37 +28,36 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 			Pattern: configPrefix + framework.GenericNameRegex("dbId") + "$",
 			Fields: map[string]*framework.FieldSchema{
 
-                "dbId": {                                                      
-                    Type:        framework.TypeString,                             
-                    Description: "DB identifier",                            
-                    Required:    false,                                            
-                },  
-			    "url": {
-				    Type:        framework.TypeString,
-				    Description: `Connection string to Qdrant database`,
-				    Required:    true,
-			    },
+				"dbId": {
+					Type:        framework.TypeString,
+					Description: "DB identifier",
+					Required:    false,
+				},
+				"url": {
+					Type:        framework.TypeString,
+					Description: `Connection string to Qdrant database`,
+					Required:    true,
+				},
 
-			    "sig_Key": {
-				    Type:        framework.TypeString,
-				    Description: `API Key/ Sign key to sign and verify token`,
-				    Required:    true,
-			    },
+				"sig_Key": {
+					Type:        framework.TypeString,
+					Description: `API Key/ Sign key to sign and verify token`,
+					Required:    true,
+				},
 
-			    "sig_alg": {
-				    Type:        framework.TypeString,
-				    Description: `Signature algorithm used to sign new tokens.`,
-			    },
+				"sig_alg": {
+					Type:        framework.TypeString,
+					Description: `Signature algorithm used to sign new tokens.`,
+				},
 
-			    "rsa_key_bits": {
-				    Type:        framework.TypeInt,
-				    Description: `Size of generated RSA keys, when signature algorithm is one of the allowed RSA signing algorithm.`,
-			    },
-			    "jwt_ttl": {
-				    Type:        framework.TypeString,
-				    Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
-			    },
-
+				"rsa_key_bits": {
+					Type:        framework.TypeInt,
+					Description: `Size of generated RSA keys, when signature algorithm is one of the allowed RSA signing algorithm.`,
+				},
+				"jwt_ttl": {
+					Type:        framework.TypeString,
+					Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
+				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -82,7 +77,7 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 			HelpDescription: pathConfigHelpDesc,
 		},
 		{
-			Pattern: configPrefix +"?$",
+			Pattern: configPrefix + "?$",
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ListOperation: &framework.PathOperation{
 					Callback: b.pathListConfig,
@@ -103,7 +98,7 @@ func (b *QdrantBackend) pathAddConfig(ctx context.Context, req *logical.Request,
 
 	jsonString, err := json.Marshal(data.Raw)
 
-    b.Logger().Debug("pathAddConfig", jsonString)
+	b.Logger().Debug("pathAddConfig", jsonString)
 
 	if err != nil {
 		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
@@ -118,67 +113,31 @@ func (b *QdrantBackend) pathAddConfig(ctx context.Context, req *logical.Request,
 	return nil, nil
 }
 
-func (b *QdrantBackend) addConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
-
-    path := configPrefix + params.DBId
-
-    b.Logger().Debug("add Config path", path)
-
-    //config, err := getFromStorage[ConfigParameters](ctx, storage, path)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-    err := storeInStorage[ConfigParameters](ctx, storage, path, &params)
-
-	if err != nil {
-		return err
-	}
-
-	return  nil
-
-}
-
-func createResponseConfig(config *ConfigParameters) (*logical.Response, error) {
-
-	rval := map[string]interface{}{}
-	err := StructToMap(config, &rval)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &logical.Response{
-		Data: rval,
-	}
-	return resp, nil
-}
-
-
 func (b *QdrantBackend) pathReadConfig(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 
-    err := data.Validate()                                                      
-    if err != nil {                                                             
-        return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
-    }                                                                           
-                                                                                
-    jsonString, err := json.Marshal(data.Raw)                                   
-    if err != nil {                                                             
-        return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
-    }                                                                           
-    params := ConfigParameters{}                                         
-    json.Unmarshal(jsonString, &params)                                         
-                 
-    config, err := readConfig(ctx, req.Storage, params)
+	err := data.Validate()
+	if err != nil {
+		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+	}
 
-    if err != nil {                                                             
-        return logical.ErrorResponse(ReadingConfigFailedError), nil              
-    }                                                                           
-                                                                                
-    if config == nil {                                                           
-        return logical.ErrorResponse(ConfigNotFoundError), nil                   
-    }                                                                           
-                                                                                
-    return createResponseConfig(config)
+	jsonString, err := json.Marshal(data.Raw)
+	if err != nil {
+		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+	}
+	params := ConfigParameters{}
+	json.Unmarshal(jsonString, &params)
+
+	config, err := readConfig(ctx, req.Storage, params)
+
+	if err != nil {
+		return logical.ErrorResponse(ReadingConfigFailedError), nil
+	}
+
+	if config == nil {
+		return logical.ErrorResponse(ConfigNotFoundError), nil
+	}
+
+	return createResponseConfig(config)
 
 }
 
@@ -220,6 +179,27 @@ func (b *QdrantBackend) pathDeleteConfig(ctx context.Context, req *logical.Reque
 
 }
 
+func (b *QdrantBackend) addConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
+
+	path := configPrefix + params.DBId
+
+	b.Logger().Debug("add Config path", path)
+
+	//config, err := getFromStorage[ConfigParameters](ctx, storage, path)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	err := storeInStorage[ConfigParameters](ctx, storage, path, &params)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func readConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) (*ConfigParameters, error) {
 	path := configPrefix + params.DBId
 	return getFromStorage[ConfigParameters](ctx, storage, path)
@@ -228,16 +208,16 @@ func readConfig(ctx context.Context, storage logical.Storage, params ConfigParam
 func listConfig(ctx context.Context, storage logical.Storage) ([]string, error) {
 	path := configPrefix
 
-    l, err := storage.List(ctx, path)                                                                          
+	l, err := storage.List(ctx, path)
 
-    if err != nil {                                                                                            
-        return nil, err                                                                                        
-    }                                                                                                          
-    var configs []string                                                                                        
-    for _, v := range l {                                                                                      
-        configs = append(configs, v)                                                                         
-    }                                                                                                          
-    return configs, nil                                                                                         
+	if err != nil {
+		return nil, err
+	}
+	var configs []string
+	for _, v := range l {
+		configs = append(configs, v)
+	}
+	return configs, nil
 }
 
 func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
@@ -251,11 +231,25 @@ func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigPar
 		return nil
 	}
 
-    //TODO delete roles
+	//TODO delete roles
 
 	// delete config
 	path := configPrefix + params.DBId
 	return deleteFromStorage(ctx, storage, path)
+}
+
+func createResponseConfig(config *ConfigParameters) (*logical.Response, error) {
+
+	rval := map[string]interface{}{}
+	err := StructToMap(config, &rval)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &logical.Response{
+		Data: rval,
+	}
+	return resp, nil
 }
 
 const pathConfigHelpSyn = `
@@ -271,4 +265,3 @@ sig_alg:		  Signature algorithm used to sign new tokens.
 rsa_key_bits:	  Size of generate RSA keys, when using RSA signature algorithms.
 jwt_ttl:          Duration before a token expires.
 `
-
