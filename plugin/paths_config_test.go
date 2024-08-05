@@ -71,8 +71,8 @@ func TestCRUDConfig(t *testing.T) {
 
         assert.Equal(t, expected, current)
 
-        // call delete
 
+        // call delete
 		resp, err = b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.DeleteOperation,
 			Path:      path,

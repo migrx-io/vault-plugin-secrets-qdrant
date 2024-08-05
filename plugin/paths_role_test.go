@@ -159,5 +159,29 @@ func TestCRUDRole(t *testing.T) {
 		assert.False(t, resp.IsError())
         assert.Equal(t, resp.Data, map[string]interface{}{"keys":[]string{"read"}})
 
+
+        // delete instance
+        // call delete
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.DeleteOperation,
+			Path:      "config/instance1",
+			Storage:   reqStorage,
+		})
+		assert.NoError(t, err)
+		assert.False(t, resp.IsError())
+
+        // call list
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ListOperation,
+			Path:      "role/instance1",
+			Storage:   reqStorage,
+		})
+
+        json.Unmarshal([]byte(claimsRole2), &claims)
+
+		assert.NoError(t, err)
+		assert.False(t, resp.IsError())
+        assert.Equal(t, resp.Data, map[string]interface{}{})
+
 	})
 }

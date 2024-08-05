@@ -121,7 +121,7 @@ func (b *QdrantBackend) pathReadRole(ctx context.Context, req *logical.Request, 
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
 
-	role, err := readRole(ctx, req.Storage, params)
+	role, err := readRole(ctx, req.Storage, params.DBId, params.RoleId)
 
 	if err != nil {
 		return logical.ErrorResponse(ReadingRoleFailedError), nil
@@ -151,7 +151,7 @@ func (b *QdrantBackend) pathListRole(ctx context.Context, req *logical.Request, 
 
 	b.Logger().Debug("list role path", rolePrefix + params.DBId)
 
-	entries, err := listRole(ctx, req.Storage, params)
+	entries, err := listRole(ctx, req.Storage, params.DBId)
 	if err != nil {
 		return logical.ErrorResponse(ListRoleFailedError), nil
 	}
@@ -174,7 +174,7 @@ func (b *QdrantBackend) pathDeleteRole(ctx context.Context, req *logical.Request
 	json.Unmarshal(jsonString, &params)
 
 	// delete role 
-	err = deleteRole(ctx, req.Storage, params)
+	err = deleteRole(ctx, req.Storage, params.DBId, params.RoleId)
 	if err != nil {
 		return logical.ErrorResponse(DeleteRoleFailedError), nil
 	}
@@ -207,15 +207,15 @@ func (b *QdrantBackend) addRole(ctx context.Context, storage logical.Storage, pa
 
 }
 
-func readRole(ctx context.Context, storage logical.Storage, params RoleParameters) (*RoleParameters, error) {
-	path := rolePrefix + params.DBId + "/" + params.RoleId
+func readRole(ctx context.Context, storage logical.Storage, dbId string, role string) (*RoleParameters, error) {
+	path := rolePrefix + dbId + "/" + role
 
 	return getFromStorage[RoleParameters](ctx, storage, path)
 }
 
-func listRole(ctx context.Context, storage logical.Storage, params RoleParameters) ([]string, error) {
+func listRole(ctx context.Context, storage logical.Storage, dbId string) ([]string, error) {
 
-	path := rolePrefix + params.DBId + "/"
+	path := rolePrefix + dbId + "/"
 
 	l, err := storage.List(ctx, path)
 
@@ -229,9 +229,9 @@ func listRole(ctx context.Context, storage logical.Storage, params RoleParameter
 	return roles, nil
 }
 
-func deleteRole(ctx context.Context, storage logical.Storage, params RoleParameters) error {
+func deleteRole(ctx context.Context, storage logical.Storage, dbId string, role string) error {
 	// get stored signing keys
-	config, err := readRole(ctx, storage, params)
+	config, err := readRole(ctx, storage, dbId, role)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func deleteRole(ctx context.Context, storage logical.Storage, params RoleParamet
 		return nil
 	}
 
-    path := rolePrefix + params.DBId + "/" + params.RoleId
+    path := rolePrefix + dbId + "/" + role
 
 	return deleteFromStorage(ctx, storage, path)
 }

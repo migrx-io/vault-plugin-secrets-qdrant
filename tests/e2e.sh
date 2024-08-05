@@ -58,12 +58,8 @@ vault delete qdrant/config/instance1
 echo -e "\n\n### Add instance config"
 vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
 
-
 echo -e "\n\n### Adding role admin"
-vault write qdrant/roles/admin @basic.json
+vault write qdrant/role/instance1/write @basic.json
 
 echo -e "\n\n### Reading role admin"
-vault read qdrant/roles/admin
-
-echo -e "\n\n### Create a token with test role"
-vault write -field=token qdrant/sign/admin > basic_jwt.txt
+vault read qdrant/role/instance1/write

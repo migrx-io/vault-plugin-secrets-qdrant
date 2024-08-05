@@ -3,6 +3,7 @@ package qdrant
 import (
 	"context"
 	"encoding/json"
+    "errors"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -231,7 +232,15 @@ func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigPar
 		return nil
 	}
 
-	//TODO delete roles
+    // delete all associated roles
+	entries, err := listRole(ctx, storage, params.DBId)
+	if err != nil {
+		return errors.New(ListRoleFailedError)
+	}
+
+    for _, v := range entries {
+        deleteRole(ctx, storage, params.DBId, v)
+    }
 
 	// delete config
 	path := configPrefix + params.DBId
