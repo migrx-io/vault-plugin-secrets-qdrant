@@ -16,26 +16,62 @@ func TestCRUDConfig(t *testing.T) {
 
 		path := "config/instance1"
 
+		var current ConfigParameters
+        var expected ConfigParameters
+
 		// first create config
 		resp, err := b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.CreateOperation,
 			Path:      path,
 			Storage:   reqStorage,
-			Data:      map[string]interface{}{},
+			Data:      map[string]interface{}{
+                "url": "http://localhost:6333",
+                "sig_key": "secret",
+                "sig_alg": "RSA256",
+                "rsa_key_bits": 4096,
+                "jwt_ttl": "3s",
+            },
 		})
 		assert.NoError(t, err)
 		assert.False(t, resp.IsError())
 
-		// call read/delete/list
+        // list all instances
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ListOperation,
+			Path:      "config",
+			Storage:   reqStorage,
+		})
+		assert.NoError(t, err)
+		assert.False(t, resp.IsError())
+		assert.Equal(t, resp.Data, map[string]interface{}{
+            "keys":[]string{"instance1"},
+        })
+
+		// call read
 		resp, err = b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.ReadOperation,
 			Path:      path,
 			Storage:   reqStorage,
 		})
 
+		MapToStruct(resp.Data, &current)
+
+        expected = ConfigParameters{
+            DBId: "instance1",
+            URL: "http://localhost:6333",
+            SignKey: "secret",
+            SignatureAlgorithm: "RSA256",
+            RSAKeyBits: 4096,
+            TokenTTL: "3s",
+        }
 
 		assert.NoError(t, err)
-		assert.True(t, resp.IsError())
+		assert.False(t, resp.IsError())
+
+        assert.Equal(t, expected, current)
+
+        // call delete
 
 		resp, err = b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.DeleteOperation,
@@ -45,6 +81,7 @@ func TestCRUDConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, resp.IsError())
 
+        // call list
 		resp, err = b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.ListOperation,
 			Path:      "config",

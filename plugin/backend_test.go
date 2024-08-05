@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-
 func getTestBackend(tb testing.TB) (*QdrantBackend, logical.Storage) {
 	tb.Helper()
 
