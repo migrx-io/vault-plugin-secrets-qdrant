@@ -44,7 +44,7 @@ func backend() *QdrantBackend {
 		},
 		Paths: framework.PathAppend(
 			pathConfig(&b),
-			// pathRole(&b),
+			pathRole(&b),
 			// pathJWT(&b),
 		),
 		Secrets: []*framework.Secret{

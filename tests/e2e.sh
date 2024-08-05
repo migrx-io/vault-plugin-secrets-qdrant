@@ -55,7 +55,6 @@ vault list qdrant/config
 echo -e "\n\n### Delete instance config"
 vault delete qdrant/config/instance1
 
-
 echo -e "\n\n### Add instance config"
 vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
 
