@@ -112,12 +112,12 @@ func (b *QdrantBackend) generateJWT(config *ConfigParameters, role *RoleParamete
 	claims["exp"] = jwt.NumericDate(expiry.Unix())
 
 	sig, err := jose.NewSigner(
-        jose.SigningKey{
-            Algorithm: jose.SignatureAlgorithm(config.SignatureAlgorithm),
-			Key: []byte(config.SignKey),
-        },
+		jose.SigningKey{
+			Algorithm: jose.SignatureAlgorithm(config.SignatureAlgorithm),
+			Key:       []byte(config.SignKey),
+		},
 		(&jose.SignerOptions{}).WithType("JWT"),
-    )
+	)
 
 	if err != nil {
 		return err
