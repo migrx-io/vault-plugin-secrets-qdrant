@@ -128,7 +128,7 @@ func (b *QdrantBackend) pathReadConfig(ctx context.Context, req *logical.Request
 	params := ConfigParameters{}
 	json.Unmarshal(jsonString, &params)
 
-	config, err := readConfig(ctx, req.Storage, params)
+	config, err := readConfig(ctx, req.Storage, params.DBId)
 
 	if err != nil {
 		return logical.ErrorResponse(ReadingConfigFailedError), nil
@@ -201,8 +201,8 @@ func (b *QdrantBackend) addConfig(ctx context.Context, storage logical.Storage, 
 
 }
 
-func readConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) (*ConfigParameters, error) {
-	path := configPrefix + params.DBId
+func readConfig(ctx context.Context, storage logical.Storage, dbId string) (*ConfigParameters, error) {
+	path := configPrefix + dbId
 	return getFromStorage[ConfigParameters](ctx, storage, path)
 }
 
@@ -223,7 +223,7 @@ func listConfig(ctx context.Context, storage logical.Storage) ([]string, error) 
 
 func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
 	// get stored signing keys
-	config, err := readConfig(ctx, storage, params)
+	config, err := readConfig(ctx, storage, params.DBId)
 	if err != nil {
 		return err
 	}

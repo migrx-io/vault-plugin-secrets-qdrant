@@ -188,7 +188,8 @@ func (b *QdrantBackend) addRole(ctx context.Context, storage logical.Storage, pa
 
 	b.Logger().Debug("add role path", path)
 
-	config, err := getFromStorage[ConfigParameters](ctx, storage, configPrefix + params.DBId)
+	config, err := readConfig(ctx, storage, params.DBId)
+
 	if err != nil {
 		return err
 	}
@@ -260,7 +261,7 @@ func createResponseRole(role *RoleParameters) (*logical.Response, error) {
 }
 
 const pathRoleHelpSyn = `
-Configure the roles..
+Configure the roles.
 `
 
 const pathRoleHelpDesc = `
