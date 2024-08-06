@@ -44,7 +44,7 @@ vault login root
 # vault read qdrant/config/
 
 echo -e "\n\n### Add instance config"
-vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
+vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=your-very-long-256-bit-secret-key" "sig_alg=HS256" "jwt_ttl=3s" 
 
 echo -e "\n\n### Read instance config"
 vault read qdrant/config/instance1
@@ -56,7 +56,7 @@ echo -e "\n\n### Delete instance config"
 vault delete qdrant/config/instance1
 
 echo -e "\n\n### Add instance config"
-vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=secret" "sig_alg=RS256" "rsa_key_bits=4096" "key_ttl=3s" "jwt_ttl=3s" 
+vault write qdrant/config/instance1 "url=http://localhost:6333" "sig_key=your-very-long-256-bit-secret-key" "sig_alg=HS256" "jwt_ttl=3s" 
 
 echo -e "\n\n### Adding role write"
 vault write qdrant/role/instance1/write @basic.json
