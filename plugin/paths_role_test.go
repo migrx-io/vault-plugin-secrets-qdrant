@@ -55,7 +55,6 @@ func TestCRUDRole(t *testing.T) {
 				"url":          "http://localhost:6333",
 				"sig_key":      "secret",
 				"sig_alg":      "RSA256",
-				"rsa_key_bits": 4096,
 				"jwt_ttl":      "3s",
 			},
 		})

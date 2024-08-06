@@ -35,7 +35,6 @@ func TestCRUDJWT(t *testing.T) {
 				"url":          "http://localhost:6333",
 				"sig_key":      "your-very-long-256-bit-secret-key",
 				"sig_alg":      "HS256",
-				"rsa_key_bits": 4096,
 				"jwt_ttl":      "3s",
 			},
 		})

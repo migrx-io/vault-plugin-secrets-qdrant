@@ -27,8 +27,6 @@ func TestCRUDConfig(t *testing.T) {
 			Data: map[string]interface{}{
 				"url":          "http://localhost:6333",
 				"sig_key":      "secret",
-				"sig_alg":      "RSA256",
-				"rsa_key_bits": 4096,
 				"jwt_ttl":      "3s",
 			},
 		})
@@ -61,8 +59,6 @@ func TestCRUDConfig(t *testing.T) {
 			DBId:               "instance1",
 			URL:                "http://localhost:6333",
 			SignKey:            "secret",
-			SignatureAlgorithm: "RSA256",
-			RSAKeyBits:         4096,
 			TokenTTL:           "3s",
 		}
 

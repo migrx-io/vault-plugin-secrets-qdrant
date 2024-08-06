@@ -99,7 +99,7 @@ func (b *QdrantBackend) pathReadJWT(ctx context.Context, req *logical.Request, d
 
 func (b *QdrantBackend) generateJWT(config *ConfigParameters, role *RoleParameters, jwt_token *JWTParameters) error {
 
-	claims := map[string]interface{}{}
+	claims := role.Claims
 
 	claims["iss"] = role.RoleId
 

@@ -21,7 +21,6 @@ type ConfigParameters struct {
 	URL                string                  `json:"url"`
 	SignKey            string                  `json:"sig_Key"`
 	SignatureAlgorithm jose.SignatureAlgorithm `json:"sig_alg,omitempty"`
-	RSAKeyBits         int                     `json:"rsa_key_bits,omitempty"`
 	TokenTTL           string                  `json:"jwt_ttl,omitempty"`
 }
 
@@ -53,10 +52,6 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 					Description: `Signature algorithm used to sign new tokens.`,
 				},
 
-				"rsa_key_bits": {
-					Type:        framework.TypeInt,
-					Description: `Size of generated RSA keys, when signature algorithm is one of the allowed RSA signing algorithm.`,
-				},
 				"jwt_ttl": {
 					Type:        framework.TypeString,
 					Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
@@ -273,6 +268,5 @@ Configure the backend.
 url:              Connection string to Qdrant database.
 key:              API Key/ Sign key to sign and verify token.             
 sig_alg:		  Signature algorithm used to sign new tokens.
-rsa_key_bits:	  Size of generate RSA keys, when using RSA signature algorithms.
 jwt_ttl:          Duration before a token expires.
 `
