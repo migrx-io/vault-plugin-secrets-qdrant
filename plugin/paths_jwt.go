@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
+	"time"
 )
 
 const (
@@ -12,17 +16,16 @@ const (
 	jwtPrefix = "jwt/"
 )
 
-
 type JWTParameters struct {
-	DBId               string `json:"dbId"`
-    RoleId             string `json:"role"`
-    Token              string `json:"token"`
+	DBId   string `json:"dbId"`
+	RoleId string `json:"role"`
+	Token  string `json:"token"`
 }
 
 func pathJWT(b *QdrantBackend) []*framework.Path {
 	return []*framework.Path{
 		{
-			Pattern: jwtPrefix + framework.GenericNameRegex("dbId") + "/" + framework.GenericNameRegex("role")+ "?$",
+			Pattern: jwtPrefix + framework.GenericNameRegex("dbId") + "/" + framework.GenericNameRegex("role") + "?$",
 			Fields: map[string]*framework.FieldSchema{
 
 				"dbId": {
@@ -62,18 +65,18 @@ func (b *QdrantBackend) pathReadJWT(ctx context.Context, req *logical.Request, d
 	params := JWTParameters{}
 	json.Unmarshal(jsonString, &params)
 
-    // get config
+	// get config
 	config, err := readConfig(ctx, req.Storage, params.DBId)
 
 	if err != nil {
 		return logical.ErrorResponse(ReadingConfigFailedError), nil
 	}
 
-    if config == nil {
+	if config == nil {
 		return logical.ErrorResponse(ConfigNotFoundError), nil
 	}
 
-    // get role
+	// get role
 	role, err := readRole(ctx, req.Storage, params.DBId, params.RoleId)
 
 	if err != nil {
@@ -83,10 +86,52 @@ func (b *QdrantBackend) pathReadJWT(ctx context.Context, req *logical.Request, d
 	if role == nil {
 		return logical.ErrorResponse(RoleNotFoundError), nil
 	}
-    // Generate JWT token
-    params.Token = "secret"
+	// Generate JWT token
+	err = b.generateJWT(config, role, &params)
+
+	if err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
 
 	return createResponseJWT(&params)
+
+}
+
+func (b *QdrantBackend) generateJWT(config *ConfigParameters, role *RoleParameters, jwt_token *JWTParameters) error {
+
+	claims := map[string]interface{}{}
+
+	claims["iss"] = role.RoleId
+
+	now := time.Now()
+
+	delta, _ := time.ParseDuration(config.TokenTTL)
+
+	expiry := now.Add(delta)
+
+	claims["exp"] = jwt.NumericDate(expiry.Unix())
+
+	sig, err := jose.NewSigner(
+        jose.SigningKey{
+            Algorithm: jose.SignatureAlgorithm(config.SignatureAlgorithm),
+			Key: []byte(config.SignKey),
+        },
+		(&jose.SignerOptions{}).WithType("JWT"),
+    )
+
+	if err != nil {
+		return err
+	}
+
+	token, err := jwt.Signed(sig).Claims(claims).Serialize()
+
+	if err != nil {
+		return err
+	}
+
+	jwt_token.Token = token
+
+	return nil
 
 }
 

@@ -20,4 +20,5 @@ const (
 	DeleteRoleFailedError  = "deleting role failed"
 	ListRoleFailedError    = "listing role failed"
 
+	ReadingJWTFailedError = "reading JWT failed"
 )

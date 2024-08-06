@@ -3,7 +3,9 @@ package qdrant
 import (
 	"context"
 	"encoding/json"
-    "errors"
+	"errors"
+
+	"github.com/go-jose/go-jose/v4"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -15,12 +17,12 @@ const (
 )
 
 type ConfigParameters struct {
-	DBId               string `json:"dbId"`
-	URL                string `json:"url"`
-	SignKey            string `json:"sig_Key"`
-	SignatureAlgorithm string `json:"sig_alg,omitempty"`
-	RSAKeyBits         int    `json:"rsa_key_bits,omitempty"`
-	TokenTTL           string `json:"jwt_ttl,omitempty"`
+	DBId               string                  `json:"dbId"`
+	URL                string                  `json:"url"`
+	SignKey            string                  `json:"sig_Key"`
+	SignatureAlgorithm jose.SignatureAlgorithm `json:"sig_alg,omitempty"`
+	RSAKeyBits         int                     `json:"rsa_key_bits,omitempty"`
+	TokenTTL           string                  `json:"jwt_ttl,omitempty"`
 }
 
 func pathConfig(b *QdrantBackend) []*framework.Path {
@@ -232,15 +234,15 @@ func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigPar
 		return nil
 	}
 
-    // delete all associated roles
+	// delete all associated roles
 	entries, err := listRole(ctx, storage, params.DBId)
 	if err != nil {
 		return errors.New(ListRoleFailedError)
 	}
 
-    for _, v := range entries {
-        deleteRole(ctx, storage, params.DBId, v)
-    }
+	for _, v := range entries {
+		deleteRole(ctx, storage, params.DBId, v)
+	}
 
 	// delete config
 	path := configPrefix + params.DBId

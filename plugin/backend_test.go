@@ -13,8 +13,8 @@ func getTestBackend(tb testing.TB) (*QdrantBackend, logical.Storage) {
 
 	config := logical.TestBackendConfig()
 	config.StorageView = new(logical.InmemStorage)
-    //config.Logger = hclog.New(&hclog.LoggerOptions{Level: hclog.Debug})
-    config.Logger = hclog.NewNullLogger()
+	//config.Logger = hclog.New(&hclog.LoggerOptions{Level: hclog.Debug})
+	config.Logger = hclog.NewNullLogger()
 	config.System = logical.TestSystemView()
 
 	b, err := Factory(context.Background(), config)

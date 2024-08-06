@@ -3,7 +3,7 @@ package qdrant
 import (
 	"context"
 	"encoding/json"
-    "errors"
+	"errors"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -13,17 +13,16 @@ const (
 	rolePrefix = "role/"
 )
 
-
 type RoleParameters struct {
-	DBId               string `json:"dbId"`
-    RoleId             string `json:"role"`
-	Claims             map[string]interface{} `json:"claims"`
+	DBId   string                 `json:"dbId"`
+	RoleId string                 `json:"role"`
+	Claims map[string]interface{} `json:"claims"`
 }
 
 func pathRole(b *QdrantBackend) []*framework.Path {
 	return []*framework.Path{
 		{
-			Pattern: rolePrefix + framework.GenericNameRegex("dbId") + "/" + framework.GenericNameRegex("role")+ "$",
+			Pattern: rolePrefix + framework.GenericNameRegex("dbId") + "/" + framework.GenericNameRegex("role") + "$",
 			Fields: map[string]*framework.FieldSchema{
 
 				"dbId": {
@@ -40,7 +39,7 @@ func pathRole(b *QdrantBackend) []*framework.Path {
 				"claims": {
 					Type:        framework.TypeMap,
 					Description: `JSON claims set to sign.`,
-                    Required: true,
+					Required:    true,
 				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
@@ -69,8 +68,8 @@ func pathRole(b *QdrantBackend) []*framework.Path {
 					Description: "DB identifier",
 					Required:    false,
 				},
-            },
-	
+			},
+
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ListOperation: &framework.PathOperation{
 					Callback: b.pathListRole,
@@ -149,7 +148,7 @@ func (b *QdrantBackend) pathListRole(ctx context.Context, req *logical.Request, 
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
 
-	b.Logger().Debug("list role path", rolePrefix + params.DBId)
+	b.Logger().Debug("list role path", rolePrefix+params.DBId)
 
 	entries, err := listRole(ctx, req.Storage, params.DBId)
 	if err != nil {
@@ -173,7 +172,7 @@ func (b *QdrantBackend) pathDeleteRole(ctx context.Context, req *logical.Request
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
 
-	// delete role 
+	// delete role
 	err = deleteRole(ctx, req.Storage, params.DBId, params.RoleId)
 	if err != nil {
 		return logical.ErrorResponse(DeleteRoleFailedError), nil
@@ -194,9 +193,9 @@ func (b *QdrantBackend) addRole(ctx context.Context, storage logical.Storage, pa
 		return err
 	}
 
-    if config == nil {
+	if config == nil {
 		return errors.New(ConfigNotFoundError)
-    }
+	}
 
 	err = storeInStorage[RoleParameters](ctx, storage, path, &params)
 
@@ -241,7 +240,7 @@ func deleteRole(ctx context.Context, storage logical.Storage, dbId string, role 
 		return nil
 	}
 
-    path := rolePrefix + dbId + "/" + role
+	path := rolePrefix + dbId + "/" + role
 
 	return deleteFromStorage(ctx, storage, path)
 }
