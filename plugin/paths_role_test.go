@@ -53,7 +53,7 @@ func TestCRUDRole(t *testing.T) {
 			Storage:   reqStorage,
 			Data: map[string]interface{}{
 				"url":     "localhost:6334",
-				"sig_key": "secret",
+				"sig_key": "your-very-long-256-bit-secret-key",
 				"sig_alg": "RSA256",
 				"jwt_ttl": "3s",
                 "tls": false,
