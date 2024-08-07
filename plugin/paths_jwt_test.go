@@ -32,10 +32,12 @@ func TestCRUDJWT(t *testing.T) {
 			Path:      pathConfig,
 			Storage:   reqStorage,
 			Data: map[string]interface{}{
-				"url":     "http://localhost:6333",
+				"url":     "localhost:6334",
 				"sig_key": "your-very-long-256-bit-secret-key",
 				"sig_alg": "HS256",
 				"jwt_ttl": "3s",
+                "tls": false,
+                "ca": "",
 			},
 		})
 		assert.NoError(t, err)
@@ -62,7 +64,7 @@ func TestCRUDJWT(t *testing.T) {
 			Storage:   reqStorage,
 		})
 
-		t.Log(err, resp)
+		//t.Log(err, resp)
 
 		MapToStruct(resp.Data, &current)
 

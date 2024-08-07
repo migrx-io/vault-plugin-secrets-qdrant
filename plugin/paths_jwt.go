@@ -55,12 +55,12 @@ func (b *QdrantBackend) pathReadJWT(ctx context.Context, req *logical.Request, d
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := JWTParameters{}
 	json.Unmarshal(jsonString, &params)
@@ -69,18 +69,18 @@ func (b *QdrantBackend) pathReadJWT(ctx context.Context, req *logical.Request, d
 	config, err := readConfig(ctx, req.Storage, params.DBId)
 
 	if err != nil {
-		return logical.ErrorResponse(ReadingConfigFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ReadingConfigFailedError, err)), nil
 	}
 
 	if config == nil {
-		return logical.ErrorResponse(ConfigNotFoundError), nil
+		return logical.ErrorResponse(BuildErrResponse(ConfigNotFoundError, err)), nil
 	}
 
 	// get role
 	role, err := readRole(ctx, req.Storage, params.DBId, params.RoleId)
 
 	if err != nil {
-		return logical.ErrorResponse(ReadingRoleFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ReadingRoleFailedError, err)), nil
 	}
 
 	if role == nil {
@@ -105,7 +105,13 @@ func (b *QdrantBackend) generateJWT(config *ConfigParameters, role *RoleParamete
 
 	now := time.Now()
 
-	delta, _ := time.ParseDuration(config.TokenTTL)
+    var delta time.Duration
+
+    if role.TokenTTL != ""{
+	    delta, _ = time.ParseDuration(role.TokenTTL)
+    }else{
+	    delta, _ = time.ParseDuration(config.TokenTTL)
+    }
 
 	expiry := now.Add(delta)
 

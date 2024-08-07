@@ -14,9 +14,10 @@ const (
 )
 
 type RoleParameters struct {
-	DBId   string                 `json:"dbId"`
-	RoleId string                 `json:"role"`
-	Claims map[string]interface{} `json:"claims"`
+	DBId      string                 `json:"dbId"`
+	RoleId    string                 `json:"role"`
+	TokenTTL  string                 `json:"jwt_ttl,omitempty"`
+	Claims    map[string]interface{} `json:"claims"`
 }
 
 func pathRole(b *QdrantBackend) []*framework.Path {
@@ -41,6 +42,12 @@ func pathRole(b *QdrantBackend) []*framework.Path {
 					Description: `JSON claims set to sign.`,
 					Required:    true,
 				},
+
+				"jwt_ttl": {
+					Type:        framework.TypeString,
+					Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
+				},
+
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -85,7 +92,7 @@ func pathRole(b *QdrantBackend) []*framework.Path {
 func (b *QdrantBackend) pathAddRole(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
@@ -93,7 +100,7 @@ func (b *QdrantBackend) pathAddRole(ctx context.Context, req *logical.Request, d
 	b.Logger().Debug("pathAddRole", jsonString)
 
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
@@ -101,7 +108,7 @@ func (b *QdrantBackend) pathAddRole(ctx context.Context, req *logical.Request, d
 	err = b.addRole(ctx, req.Storage, params)
 
 	if err != nil {
-		return logical.ErrorResponse(AddingRoleFailedError + ":" + err.Error()), nil
+		return logical.ErrorResponse(BuildErrResponse(AddingRoleFailedError, err)), nil
 	}
 	return nil, nil
 }
@@ -110,12 +117,12 @@ func (b *QdrantBackend) pathReadRole(ctx context.Context, req *logical.Request, 
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
@@ -123,7 +130,7 @@ func (b *QdrantBackend) pathReadRole(ctx context.Context, req *logical.Request, 
 	role, err := readRole(ctx, req.Storage, params.DBId, params.RoleId)
 
 	if err != nil {
-		return logical.ErrorResponse(ReadingRoleFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ReadingRoleFailedError, err)), nil
 	}
 
 	if role == nil {
@@ -138,12 +145,12 @@ func (b *QdrantBackend) pathListRole(ctx context.Context, req *logical.Request, 
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
@@ -152,7 +159,7 @@ func (b *QdrantBackend) pathListRole(ctx context.Context, req *logical.Request, 
 
 	entries, err := listRole(ctx, req.Storage, params.DBId)
 	if err != nil {
-		return logical.ErrorResponse(ListRoleFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ListRoleFailedError, err)), nil
 	}
 
 	return logical.ListResponse(entries), nil
@@ -162,20 +169,20 @@ func (b *QdrantBackend) pathDeleteRole(ctx context.Context, req *logical.Request
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := RoleParameters{}
 	json.Unmarshal(jsonString, &params)
 
 	// delete role
-	err = deleteRole(ctx, req.Storage, params.DBId, params.RoleId)
+	err = b.deleteRole(ctx, req.Storage, params.DBId, params.RoleId)
 	if err != nil {
-		return logical.ErrorResponse(DeleteRoleFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(DeleteRoleFailedError, err)), logical.ErrInvalidRequest
 	}
 	return nil, nil
 
@@ -195,6 +202,12 @@ func (b *QdrantBackend) addRole(ctx context.Context, storage logical.Storage, pa
 
 	if config == nil {
 		return errors.New(ConfigNotFoundError)
+	}
+
+    //store role in database 
+    err = b.client.createRole(ctx, storage, &params)
+	if err != nil {
+		return err
 	}
 
 	err = storeInStorage[RoleParameters](ctx, storage, path, &params)
@@ -229,18 +242,24 @@ func listRole(ctx context.Context, storage logical.Storage, dbId string) ([]stri
 	return roles, nil
 }
 
-func deleteRole(ctx context.Context, storage logical.Storage, dbId string, role string) error {
+func(b *QdrantBackend) deleteRole(ctx context.Context, storage logical.Storage, dbId string, name string) error {
 	// get stored signing keys
-	config, err := readRole(ctx, storage, dbId, role)
+	role, err := readRole(ctx, storage, dbId, name)
 	if err != nil {
 		return err
 	}
-	if config == nil {
+	if role == nil {
 		// nothing to delete
 		return nil
 	}
 
-	path := rolePrefix + dbId + "/" + role
+    //delete role in database 
+    err = b.client.deleteRole(ctx, storage, role)
+	if err != nil {
+		return err
+	}
+
+	path := rolePrefix + dbId + "/" + name
 
 	return deleteFromStorage(ctx, storage, path)
 }

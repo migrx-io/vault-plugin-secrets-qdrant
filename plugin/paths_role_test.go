@@ -52,10 +52,12 @@ func TestCRUDRole(t *testing.T) {
 			Path:      pathConfig,
 			Storage:   reqStorage,
 			Data: map[string]interface{}{
-				"url":     "http://localhost:6333",
+				"url":     "localhost:6334",
 				"sig_key": "secret",
 				"sig_alg": "RSA256",
 				"jwt_ttl": "3s",
+                "tls": false,
+                "ca": "",
 			},
 		})
 		assert.NoError(t, err)

@@ -22,6 +22,8 @@ type ConfigParameters struct {
 	SignKey            string                  `json:"sig_Key"`
 	SignatureAlgorithm jose.SignatureAlgorithm `json:"sig_alg,omitempty"`
 	TokenTTL           string                  `json:"jwt_ttl,omitempty"`
+    TLS                bool                    `json:"tls,omitempty"`
+    CA                 string                  `json:"ca,omitempty"`
 }
 
 func pathConfig(b *QdrantBackend) []*framework.Path {
@@ -56,6 +58,16 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
 				},
+
+				"tls": {
+					Type:        framework.TypeString,
+					Description: `Use TLS to connect to Qdrant database`,
+				},
+                "ca": {
+                        Type:        framework.TypeString,
+                        Description: `Custom CA for TLS to connect to Qdrant database`,
+                },
+
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -91,7 +103,7 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 func (b *QdrantBackend) pathAddConfig(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
@@ -99,14 +111,14 @@ func (b *QdrantBackend) pathAddConfig(ctx context.Context, req *logical.Request,
 	b.Logger().Debug("pathAddConfig", jsonString)
 
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := ConfigParameters{}
 	json.Unmarshal(jsonString, &params)
 
 	err = b.addConfig(ctx, req.Storage, params)
 	if err != nil {
-		return logical.ErrorResponse(AddingConfigFailedError + ":" + err.Error()), nil
+		return logical.ErrorResponse(BuildErrResponse(AddingConfigFailedError, err)), nil
 	}
 	return nil, nil
 }
@@ -115,12 +127,12 @@ func (b *QdrantBackend) pathReadConfig(ctx context.Context, req *logical.Request
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := ConfigParameters{}
 	json.Unmarshal(jsonString, &params)
@@ -128,7 +140,7 @@ func (b *QdrantBackend) pathReadConfig(ctx context.Context, req *logical.Request
 	config, err := readConfig(ctx, req.Storage, params.DBId)
 
 	if err != nil {
-		return logical.ErrorResponse(ReadingConfigFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ReadingConfigFailedError, err)), nil
 	}
 
 	if config == nil {
@@ -143,12 +155,12 @@ func (b *QdrantBackend) pathListConfig(ctx context.Context, req *logical.Request
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	entries, err := listConfig(ctx, req.Storage)
 	if err != nil {
-		return logical.ErrorResponse(ListConfigFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(ListConfigFailedError, err)), nil
 	}
 
 	return logical.ListResponse(entries), nil
@@ -158,20 +170,20 @@ func (b *QdrantBackend) pathDeleteConfig(ctx context.Context, req *logical.Reque
 
 	err := data.Validate()
 	if err != nil {
-		return logical.ErrorResponse(InvalidParametersError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(InvalidParametersError, err)), logical.ErrInvalidRequest
 	}
 
 	jsonString, err := json.Marshal(data.Raw)
 	if err != nil {
-		return logical.ErrorResponse(DecodeFailedError), logical.ErrInvalidRequest
+		return logical.ErrorResponse(BuildErrResponse(DecodeFailedError, err)), logical.ErrInvalidRequest
 	}
 	params := ConfigParameters{}
 	json.Unmarshal(jsonString, &params)
 
 	// delete issue and all related nkeys and jwt
-	err = deleteConfig(ctx, req.Storage, params)
+	err = b.deleteConfig(ctx, req.Storage, params)
 	if err != nil {
-		return logical.ErrorResponse(DeleteConfigFailedError), nil
+		return logical.ErrorResponse(BuildErrResponse(DeleteConfigFailedError, err)), nil
 	}
 	return nil, nil
 
@@ -218,7 +230,7 @@ func listConfig(ctx context.Context, storage logical.Storage) ([]string, error) 
 	return configs, nil
 }
 
-func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
+func (b *QdrantBackend) deleteConfig(ctx context.Context, storage logical.Storage, params ConfigParameters) error {
 	// get stored signing keys
 	config, err := readConfig(ctx, storage, params.DBId)
 	if err != nil {
@@ -236,7 +248,7 @@ func deleteConfig(ctx context.Context, storage logical.Storage, params ConfigPar
 	}
 
 	for _, v := range entries {
-		deleteRole(ctx, storage, params.DBId, v)
+		b.deleteRole(ctx, storage, params.DBId, v)
 	}
 
 	// delete config

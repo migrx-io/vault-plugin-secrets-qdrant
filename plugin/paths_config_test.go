@@ -25,9 +25,11 @@ func TestCRUDConfig(t *testing.T) {
 			Path:      path,
 			Storage:   reqStorage,
 			Data: map[string]interface{}{
-				"url":     "http://localhost:6333",
+				"url":     "localhost:6334",
 				"sig_key": "secret",
 				"jwt_ttl": "3s",
+                "tls": true,
+                "ca": "",
 			},
 		})
 		assert.NoError(t, err)
@@ -57,9 +59,11 @@ func TestCRUDConfig(t *testing.T) {
 
 		expected = ConfigParameters{
 			DBId:     "instance1",
-			URL:      "http://localhost:6333",
+			URL:      "localhost:6334",
 			SignKey:  "secret",
 			TokenTTL: "3s",
+            TLS: true,
+            CA: "",
 		}
 
 		assert.NoError(t, err)

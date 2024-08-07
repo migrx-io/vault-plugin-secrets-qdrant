@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+
 )
 
 // QdrantBackend defines an object that
@@ -15,7 +16,7 @@ import (
 // target API's client.
 type QdrantBackend struct {
 	*framework.Backend
-	lock   sync.RWMutex
+    clientMutex     sync.RWMutex
 	client *QdrantClient
 }
 
@@ -64,8 +65,8 @@ The Qdrant secrets backend dynamically generates user tokens.
 // reset clears any client configuration for a new
 // backend to be configured
 func (b *QdrantBackend) reset() {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.clientMutex.Lock()
+	defer b.clientMutex.Unlock()
 	b.client = nil
 }
 
@@ -75,23 +76,6 @@ func (b *QdrantBackend) invalidate(ctx context.Context, key string) {
 	if key == "config" {
 		b.reset()
 	}
-}
-
-// getClient locks the backend as it configures and creates a
-// a new client for the target API
-func (b *QdrantBackend) getClient(ctx context.Context, s logical.Storage) (*QdrantClient, error) {
-	b.lock.RLock()
-	unlockFunc := b.lock.RUnlock
-	defer func() { unlockFunc() }()
-
-	if b.client != nil {
-		return b.client, nil
-	}
-
-	b.lock.RUnlock()
-	b.lock.Lock()
-	unlockFunc = b.lock.Unlock
-	return b.client, nil
 }
 
 func getFromStorage[T any](ctx context.Context, s logical.Storage, path string) (*T, error) {

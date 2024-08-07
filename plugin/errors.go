@@ -22,3 +22,9 @@ const (
 
 	ReadingJWTFailedError = "reading JWT failed"
 )
+
+func BuildErrResponse(code string, err error) string {
+
+    return code + ":" + err.Error()
+
+}
