@@ -25,6 +25,6 @@ const (
 
 func BuildErrResponse(code string, err error) string {
 
-    return code + ":" + err.Error()
+	return code + ":" + err.Error()
 
 }

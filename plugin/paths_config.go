@@ -22,8 +22,8 @@ type ConfigParameters struct {
 	SignKey            string                  `json:"sig_Key"`
 	SignatureAlgorithm jose.SignatureAlgorithm `json:"sig_alg,omitempty"`
 	TokenTTL           string                  `json:"jwt_ttl,omitempty"`
-    TLS                bool                    `json:"tls,omitempty"`
-    CA                 string                  `json:"ca,omitempty"`
+	TLS                bool                    `json:"tls,omitempty"`
+	CA                 string                  `json:"ca,omitempty"`
 }
 
 func pathConfig(b *QdrantBackend) []*framework.Path {
@@ -63,11 +63,10 @@ func pathConfig(b *QdrantBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: `Use TLS to connect to Qdrant database`,
 				},
-                "ca": {
-                        Type:        framework.TypeString,
-                        Description: `Custom CA for TLS to connect to Qdrant database`,
-                },
-
+				"ca": {
+					Type:        framework.TypeString,
+					Description: `Custom CA for TLS to connect to Qdrant database`,
+				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{

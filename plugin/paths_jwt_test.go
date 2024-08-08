@@ -36,8 +36,8 @@ func TestCRUDJWT(t *testing.T) {
 				"sig_key": "your-very-long-256-bit-secret-key",
 				"sig_alg": "HS256",
 				"jwt_ttl": "3s",
-                "tls": false,
-                "ca": "",
+				"tls":     false,
+				"ca":      "",
 			},
 		})
 		assert.NoError(t, err)

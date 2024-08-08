@@ -1,15 +1,15 @@
 {
     "claims":{
         "value_exists": {
-            "collection": "users",
+            "collection": "sys_roles",
             "matches": [
-            { "key": "role", "value": "admin" }
+            { "key": "role", "value": "write2" }
             ]
         },
         "access": [
             {
-            "collection": "my_collection",
-            "access": "rw"
+            "collection": "sys_roles",
+            "access": "r"
             }
         ]
     }

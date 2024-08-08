@@ -1,6 +1,7 @@
 REPO_DIR := $(shell basename $(CURDIR))
 PLUGIN_DIR := $(GOPATH)/vault-plugins
 PLUGIN_NAME := $(shell command ls cmd/)
+GORELEASER=~/go/bin/goreleaser
 
 .PHONY: default
 default: build
@@ -34,3 +35,7 @@ tests:
 clean: teardown-env
 	@rm -rf bin/*
 	@cd bootstrap && rm -rf qdrant_data
+
+.PHONY: release
+release:
+	@${GORELEASER} release --clean

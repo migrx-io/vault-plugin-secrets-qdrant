@@ -14,10 +14,10 @@ const (
 )
 
 type RoleParameters struct {
-	DBId      string                 `json:"dbId"`
-	RoleId    string                 `json:"role"`
-	TokenTTL  string                 `json:"jwt_ttl,omitempty"`
-	Claims    map[string]interface{} `json:"claims"`
+	DBId     string                 `json:"dbId"`
+	RoleId   string                 `json:"role"`
+	TokenTTL string                 `json:"jwt_ttl,omitempty"`
+	Claims   map[string]interface{} `json:"claims"`
 }
 
 func pathRole(b *QdrantBackend) []*framework.Path {
@@ -47,7 +47,6 @@ func pathRole(b *QdrantBackend) []*framework.Path {
 					Type:        framework.TypeString,
 					Description: `Duration a token is valid for (mapped to the 'exp' claim).`,
 				},
-
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.CreateOperation: &framework.PathOperation{
@@ -204,8 +203,8 @@ func (b *QdrantBackend) addRole(ctx context.Context, storage logical.Storage, pa
 		return errors.New(ConfigNotFoundError)
 	}
 
-    //store role in database 
-    err = b.client.createRole(ctx, storage, &params)
+	//store role in database
+	err = b.client.createRole(ctx, storage, &params)
 	if err != nil {
 		return err
 	}
@@ -242,7 +241,7 @@ func listRole(ctx context.Context, storage logical.Storage, dbId string) ([]stri
 	return roles, nil
 }
 
-func(b *QdrantBackend) deleteRole(ctx context.Context, storage logical.Storage, dbId string, name string) error {
+func (b *QdrantBackend) deleteRole(ctx context.Context, storage logical.Storage, dbId string, name string) error {
 	// get stored signing keys
 	role, err := readRole(ctx, storage, dbId, name)
 	if err != nil {
@@ -253,8 +252,8 @@ func(b *QdrantBackend) deleteRole(ctx context.Context, storage logical.Storage, 
 		return nil
 	}
 
-    //delete role in database 
-    err = b.client.deleteRole(ctx, storage, role)
+	//delete role in database
+	err = b.client.deleteRole(ctx, storage, role)
 	if err != nil {
 		return err
 	}

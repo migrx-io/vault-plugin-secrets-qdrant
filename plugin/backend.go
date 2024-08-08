@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-
 )
 
 // QdrantBackend defines an object that
@@ -16,8 +15,8 @@ import (
 // target API's client.
 type QdrantBackend struct {
 	*framework.Backend
-    clientMutex     sync.RWMutex
-	client *QdrantClient
+	clientMutex sync.RWMutex
+	client      *QdrantClient
 }
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {

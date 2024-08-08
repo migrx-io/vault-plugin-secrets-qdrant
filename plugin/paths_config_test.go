@@ -28,8 +28,8 @@ func TestCRUDConfig(t *testing.T) {
 				"url":     "localhost:6334",
 				"sig_key": "secret",
 				"jwt_ttl": "3s",
-                "tls": true,
-                "ca": "",
+				"tls":     true,
+				"ca":      "",
 			},
 		})
 		assert.NoError(t, err)
@@ -62,8 +62,8 @@ func TestCRUDConfig(t *testing.T) {
 			URL:      "localhost:6334",
 			SignKey:  "secret",
 			TokenTTL: "3s",
-            TLS: true,
-            CA: "",
+			TLS:      true,
+			CA:       "",
 		}
 
 		assert.NoError(t, err)

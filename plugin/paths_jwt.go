@@ -105,13 +105,13 @@ func (b *QdrantBackend) generateJWT(config *ConfigParameters, role *RoleParamete
 
 	now := time.Now()
 
-    var delta time.Duration
+	var delta time.Duration
 
-    if role.TokenTTL != ""{
-	    delta, _ = time.ParseDuration(role.TokenTTL)
-    }else{
-	    delta, _ = time.ParseDuration(config.TokenTTL)
-    }
+	if role.TokenTTL != "" {
+		delta, _ = time.ParseDuration(role.TokenTTL)
+	} else {
+		delta, _ = time.ParseDuration(config.TokenTTL)
+	}
 
 	expiry := now.Add(delta)
 
