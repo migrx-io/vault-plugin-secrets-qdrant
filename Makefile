@@ -33,7 +33,7 @@ tests:
 
 .PHONY: clean
 clean: teardown-env
-	@rm -rf bin/*
+	@rm -rf bin/* dist
 	@cd bootstrap && rm -rf qdrant_data
 
 .PHONY: release
